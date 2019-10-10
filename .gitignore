@@ -1,0 +1,8 @@
+# exclude all files and folders
+/*
+
+!/cmake/
+!/.gitignore
+!/CMakeLists.txt
+!/main.cpp
+!/README.md
