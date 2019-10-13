@@ -6,3 +6,6 @@
 !/CMakeLists.txt
 !/main.cpp
 !/README.md
+!/resource.h
+!/stb_image.h
+!/res/
