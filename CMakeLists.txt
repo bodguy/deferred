@@ -1,15 +1,32 @@
 cmake_minimum_required(VERSION 3.15)
 project(deferred VERSION 0.0.1)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_library(COCOA_LIBS Cocoa REQUIRED)
 find_library(IOKIT_LIBS IOKit REQUIRED)
 find_library(CORE_LIBS CoreVideo REQUIRED)
+
 find_package(OpenGL REQUIRED)
+if(NOT OpenGL_FOUND)
+    message(Error "OpenGL not found")
+endif(NOT OpenGL_FOUND)
+
 find_package(GLEW REQUIRED)
+if(NOT GLEW_FOUND)
+    message(Error "GLEW not found")
+endif(NOT GLEW_FOUND)
+
 find_package(glfw3 REQUIRED)
+if(NOT GLFW_FOUND)
+    message(Error "GLFW not found")
+endif(NOT GLFW_FOUND)
+
+find_package(GLM REQUIRED)
+if(NOT GLM_FOUND)
+    message(Error "GLM not found")
+endif(NOT GLM_FOUND)
 
 add_executable(${CMAKE_PROJECT_NAME} main.cpp)
 if(OPENGL_FOUND AND GLEW_FOUND)

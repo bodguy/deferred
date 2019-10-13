@@ -12,6 +12,11 @@ brew install glew
 brew link glew
 ```
 
+```bash
+brew install glm
+brew link glm
+```
+
 ### dependencies
 
 - CoreVideo
@@ -20,3 +25,4 @@ brew link glew
 - OpenGL
 - glew
 - glfw
+- glm
