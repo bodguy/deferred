@@ -15,6 +15,7 @@
 
 void RenderText(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow *window);
 
 // settings
@@ -30,6 +31,15 @@ glm::vec3 right = glm::vec3();
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+// Euler Angles
+float Yaw = -90.0f;
+float Pitch = 0.0f;
+float MouseSensitivity = 0.1f;
+
+bool wire_frame_toggle = false;
+bool firstMouse = true;
+float lastX = (float)SCR_WIDTH / 2.0;
+float lastY = (float)SCR_HEIGHT / 2.0;
 
 /// Holds all state information relevant to a character as loaded using FreeType
 struct Character {
@@ -39,7 +49,7 @@ struct Character {
   signed long Advance;    // Horizontal offset to advance to next glyph
 };
 std::map<GLchar, Character> Characters;
-GLuint VAO, VBO;
+GLuint fontVAO, fontVBO;
 
 int main() {
   glfwInit();
@@ -56,6 +66,7 @@ int main() {
   }
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glfwSetCursorPosCallback(window, mouse_callback);
 
   glewExperimental = GL_TRUE;
   if(glewInit() != GLEW_OK) return -1;
@@ -64,10 +75,12 @@ int main() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  unsigned int fontShader = loadShader(font_vs, font_fs);
+  unsigned int normal_shader = loadShader(sh1_vs, sh1_fs);
+  unsigned int screen_shader = loadShader(sh2_vs, sh2_fs);
+  unsigned int font_shader = loadShader(font_vs, font_fs);
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
-  glUseProgram(fontShader);
-  glUniformMatrix4fv(glGetUniformLocation(fontShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+  glUseProgram(font_shader);
+  glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
   // FreeType
   FT_Library ft;
@@ -87,29 +100,17 @@ int main() {
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   // Load first 128 characters of ASCII set
-  for (GLubyte c = 0; c < 128; c++)
-  {
+  for (GLubyte c = 0; c < 128; c++) {
     // Load character glyph
-    if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-    {
+    if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
       std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
       continue;
     }
     // Generate texture
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            face->glyph->bitmap.buffer
-    );
+    GLuint font_texture;
+    glGenTextures(1, &font_texture);
+    glBindTexture(GL_TEXTURE_2D, font_texture);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RED, face->glyph->bitmap.width, face->glyph->bitmap.rows, 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
     // Set texture options
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -117,7 +118,7 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // Now store character for later use
     Character character = {
-            texture,
+            font_texture,
             glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
             glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
             face->glyph->advance.x
@@ -130,17 +131,15 @@ int main() {
   FT_Done_FreeType(ft);
 
   // Configure VAO/VBO for texture quads
-  glGenVertexArrays(1, &VAO);
-  glGenBuffers(1, &VBO);
-  glBindVertexArray(VAO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glGenVertexArrays(1, &fontVAO);
+  glGenBuffers(1, &fontVBO);
+  glBindVertexArray(fontVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, fontVBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
-
-  ////////////////////////////////////////////////////////////////////////////////////
 
   // make vao, vbo
   unsigned int cubeVAO, cubeVBO;
@@ -176,109 +175,145 @@ int main() {
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-  unsigned int cubeTexture = loadTexture("../res/marble.jpg");
-  unsigned int floorTexture = loadTexture("../res/metal.png");
+  unsigned int cube_texture = loadTexture("../res/marble.jpg");
+  unsigned int floor_texture = loadTexture("../res/metal.png");
 
-//  // create a new framebuffer
-//  unsigned int fbo;
-//  glGenFramebuffers(1, &fbo);
-//  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-//
-//  // bind some attachments here
-//  // attachment is memory location that can act as a buffer for the framebuffer
-//  // 1. creating a texture attachment
-//  unsigned int textureId;
-//  glGenTextures(1, &textureId);
-//  glBindTexture(GL_TEXTURE_2D, textureId);
-//  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-//  glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//  glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//  glBindTexture(GL_TEXTURE_2D, 0);
-//
-//  // 2. attach this texture to framebuffer
-//  // parameter description
-//  // - target: GL_FRAMEBUFFER OR GL_READ_FRAMEBUFFER OR GL_DRAW_FRAMEBUFFER
-//  // - attachment: the type of attachment. in this here, GL_COLOR_ATTACHMENT is used
-//  // -- GL_COLOR_ATTACHMENT, GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
-//  // --           -        , GL_DEPTH_COMPONENT , GL_STENCIL_INDEX     , GL_DEPTH_STENCIL
-//  // - textarget: the type of texture you want to attach
-//  // - texutre: the actual texture ID
-//  // - level: the mipmap level. we keep this at 0
-//  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
-//
-//  // 3. creating a renderbuffer for using stencil and depth testing (not sampling)
-//  unsigned int rbo;
-//  glGenRenderbuffers(1, &rbo);
-//  glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-//  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
-//  glBindRenderbuffer(GL_RENDERBUFFER, 0);
-//
-//  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-//
-//  // check the framebuffer is complete or not
-//  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
-//    std::cout << "ERROR::FRAMEBUFFER::BUFFER_STATUS IS NOT COMPLETE" << std::endl;
-//    return 0;
-//  }
-//
-//  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//  // end
+  // create a new framebuffer
+  unsigned int fbo;
+  glGenFramebuffers(1, &fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-  unsigned int normalShader = loadShader(sh1_vs, sh1_fs);
-//  unsigned int screenShader = makeShader(sh2_vs, sh2_fs);
+  // bind some attachments here
+  // attachment is memory location that can act as a buffer for the framebuffer
+  // 1. creating a texture attachment
+  unsigned int frame_texture;
+  glGenTextures(1, &frame_texture);
+  glBindTexture(GL_TEXTURE_2D, frame_texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
+  // 2. attach this texture to framebuffer
+  // parameter description
+  // - target: GL_FRAMEBUFFER OR GL_READ_FRAMEBUFFER OR GL_DRAW_FRAMEBUFFER
+  // - attachment: the type of attachment. in this here, GL_COLOR_ATTACHMENT is used
+  // -- GL_COLOR_ATTACHMENT, GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT, GL_DEPTH_STENCIL_ATTACHMENT
+  // --           -        , GL_DEPTH_COMPONENT , GL_STENCIL_INDEX     , GL_DEPTH_STENCIL
+  // - textarget: the type of texture you want to attach
+  // - texutre: the actual texture ID
+  // - level: the mipmap level. we keep this at 0
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame_texture, 0);
+
+  // 3. creating a renderbuffer for using stencil and depth testing (not sampling)
+  unsigned int rbo;
+  glGenRenderbuffers(1, &rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
+  glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+  // check the framebuffer is complete or not
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    std::cout << "ERROR::FRAMEBUFFER::BUFFER_STATUS IS NOT COMPLETE" << std::endl;
+    return 0;
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
 
+    // Calculate the new Front vector
+    glm::vec3 f;
+    f.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+    f.y = sin(glm::radians(Pitch));
+    f.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+    front = glm::normalize(f);
     right = glm::normalize(glm::cross(front, glm::vec3(0.f, 1.f, 0.f)));
     up = glm::normalize(glm::cross(right, front));
 
     processInput(window);
 
     // first pass
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
+    {
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      glEnable(GL_DEPTH_TEST);
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glUseProgram(normalShader);
-    glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = glm::lookAt(pos, pos + front, up);
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-    glUniformMatrix4fv(glGetUniformLocation(normalShader, "view"), 1, GL_FALSE, &view[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(normalShader, "projection"), 1, GL_FALSE, &projection[0][0]);
+      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glEnable(GL_DEPTH_TEST);
 
-    // cubes
-    glBindVertexArray(cubeVAO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, cubeTexture);
-    model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-    glUniformMatrix4fv(glGetUniformLocation(normalShader, "model"), 1, GL_FALSE, &model[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    // floor
-    glBindVertexArray(planeVAO);
-    glBindTexture(GL_TEXTURE_2D, floorTexture);
-    glUniformMatrix4fv(glGetUniformLocation(normalShader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
+      glUseProgram(normal_shader);
+      glm::mat4 model = glm::mat4(1.0f);
+      glm::mat4 view = glm::lookAt(pos, pos + front, up);
+      glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, &view[0][0]);
+      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, &projection[0][0]);
 
-    RenderText(fontShader, "This is sample text", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
-    RenderText(fontShader, "(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
+      // first cube
+      glBindVertexArray(cubeVAO);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, cube_texture);
+      model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+      // another cube
+      model = glm::translate(model, glm::vec3(3.0f, 0.0f, 2.0f));
+      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+      // floor
+      glBindVertexArray(planeVAO);
+      glBindTexture(GL_TEXTURE_2D, floor_texture);
+      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+      glBindVertexArray(0);
+
+      RenderText(font_shader, "This is sample text sucks!!!!!!!!!!!!!!!", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
+      RenderText(font_shader, "(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
+    }
+
+    // second pass
+    {
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glDisable(GL_DEPTH_TEST);
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessery actually, since we won't be able to see behind the quad anyways)
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      glUseProgram(screen_shader);
+      glBindVertexArray(quadVAO);
+      glBindTexture(GL_TEXTURE_2D, frame_texture);	// use the color attachment texture as the texture of the quad plane
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
 
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
 
   glDeleteVertexArrays(1, &cubeVAO);
-  glDeleteBuffers(1, &cubeVBO);
   glDeleteVertexArrays(1, &planeVAO);
-  glDeleteBuffers(1, &planeVBO);
   glDeleteVertexArrays(1, &quadVAO);
+  glDeleteBuffers(1, &cubeVBO);
+  glDeleteBuffers(1, &planeVBO);
   glDeleteBuffers(1, &quadVBO);
 
-//  glDeleteRenderbuffers(1, &rbo);
-//  glDeleteFramebuffers(1, &fbo);
+  glDeleteProgram(normal_shader);
+  glDeleteProgram(screen_shader);
+  glDeleteProgram(font_shader);
+
+  for (auto& i : Characters) {
+    glDeleteTextures(1, &i.second.TextureID);
+  }
+  glDeleteTextures(1, &cube_texture);
+  glDeleteTextures(1, &floor_texture);
+  glDeleteTextures(1, &frame_texture);
+
+  glDeleteRenderbuffers(1, &rbo);
+  glDeleteFramebuffers(1, &fbo);
 
   glfwTerminate();
   return 0;
@@ -297,18 +332,53 @@ void processInput(GLFWwindow *window) {
     pos -= right * velocity;
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     pos += right * velocity;
-
+  if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+    wire_frame_toggle = !wire_frame_toggle;
+    if (wire_frame_toggle) {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    } else {
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+  }
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+  int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+  if (state == GLFW_PRESS) {
+    if (firstMouse) {
+      lastX = xpos;
+      lastY = ypos;
+      firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+    lastX = xpos;
+    lastY = ypos;
+
+    xoffset *= MouseSensitivity;
+    yoffset *= MouseSensitivity;
+
+    Yaw   += xoffset;
+    Pitch += yoffset;
+
+    if (Pitch > 89.0f)
+      Pitch = 89.0f;
+    if (Pitch < -89.0f)
+      Pitch = -89.0f;
+  }
+}
+
 void RenderText(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color) {
   glUseProgram(shader);
   glUniform3f(glGetUniformLocation(shader, "textColor"), color.x, color.y, color.z);
   glActiveTexture(GL_TEXTURE0);
-  glBindVertexArray(VAO);
+  glBindVertexArray(fontVAO);
 
   // Iterate through all characters
   std::string::const_iterator c;
@@ -334,7 +404,7 @@ void RenderText(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLf
     // Render glyph texture over quad
     glBindTexture(GL_TEXTURE_2D, ch.TextureID);
     // Update content of VBO memory
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, fontVBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // Be sure to use glBufferSubData and not glBufferData
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
