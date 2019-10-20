@@ -14,6 +14,16 @@ void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
+// camera
+glm::vec3 pos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 right = glm::vec3();
+
+// timing
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
 int main() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -119,6 +129,13 @@ int main() {
 //  unsigned int screenShader = makeShader(sh2_vs, sh2_fs);
 
   while (!glfwWindowShouldClose(window)) {
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;
+
+    right = glm::normalize(glm::cross(front, glm::vec3(0.f, 1.f, 0.f)));
+    up = glm::normalize(glm::cross(right, front));
+
     processInput(window);
 
     // first pass
@@ -128,7 +145,7 @@ int main() {
 
     glUseProgram(normalShader);
     glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 3.0f) + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 view = glm::lookAt(pos, pos + front, up);
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     glUniformMatrix4fv(glGetUniformLocation(normalShader, "view"), 1, GL_FALSE, &view[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(normalShader, "projection"), 1, GL_FALSE, &projection[0][0]);
@@ -166,8 +183,19 @@ int main() {
 }
 
 void processInput(GLFWwindow *window) {
+  float velocity = 2.5f * deltaTime;
+
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    pos += front * velocity;
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    pos -= front * velocity;
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    pos -= right * velocity;
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    pos += right * velocity;
+
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
