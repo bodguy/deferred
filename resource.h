@@ -3,6 +3,59 @@
 #ifndef RESOURCE_H
 #define RESOURCE_H
 
+std::string hbulr_vs = R"(#version 330 core
+in vec3 position;
+out vec2 blurTexCoords[11];
+
+uniform float targetWidth;
+
+void main(void) {
+  gl_Position = vec4(position, 0.0, 1.0);
+  vec2 centerTexCoords = position * 0.5 + 0.5;
+  float pixelSize = 1.0 / targetWidth;
+
+  for(int i = -5; i <= 5; i++) {
+    blurTextureCoords[i+5] = centerTexCoords + vec2(pixelSize * i, 0.0);
+  }
+})";
+
+std::string vbulr_vs = R"(#version 330 core
+in vec3 position;
+out vec2 blurTexCoords[11];
+
+uniform float targetHeight;
+
+void main(void) {
+  gl_Position = vec4(position, 0.0, 1.0);
+  vec2 centerTexCoords = position * 0.5 + 0.5;
+  float pixelSize = 1.0 / targetWidth;
+
+  for(int i = -5; i <= 5; i++) {
+    blurTextureCoords[i+5] = centerTexCoords + vec2(0.0, pixelSize * i);
+  }
+})";
+
+std::string blur_fs = R"(#version 330 core
+out vec4 out_colour;
+in vec2 blurTextureCoords[11];
+
+uniform sampler2D originalTexture;
+
+void main(void) {
+  out_colour = vec4(0.0);
+  out_colour += texture(originalTexture, blurTextureCoords[0]) * 0.0093;
+  out_colour += texture(originalTexture, blurTextureCoords[1]) * 0.028002;
+  out_colour += texture(originalTexture, blurTextureCoords[2]) * 0.065984;
+  out_colour += texture(originalTexture, blurTextureCoords[3]) * 0.121703;
+  out_colour += texture(originalTexture, blurTextureCoords[4]) * 0.175713;
+  out_colour += texture(originalTexture, blurTextureCoords[5]) * 0.198596;
+  out_colour += texture(originalTexture, blurTextureCoords[6]) * 0.175713;
+  out_colour += texture(originalTexture, blurTextureCoords[7]) * 0.121703;
+  out_colour += texture(originalTexture, blurTextureCoords[8]) * 0.065984;
+  out_colour += texture(originalTexture, blurTextureCoords[9]) * 0.028002;
+  out_colour += texture(originalTexture, blurTextureCoords[10]) * 0.0093;
+})";
+
 std::string font_vs = R"(#version 330 core
 layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
 out vec2 TexCoords;

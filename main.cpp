@@ -78,6 +78,8 @@ int main() {
   unsigned int normal_shader = loadShader(normal_vs, normal_fs);
   unsigned int screen_shader = loadShader(screen_vs, screen_fs);
   unsigned int font_shader = loadShader(font_vs, font_fs);
+  unsigned int hblur_shader = loadShader(hbulr_vs, blur_fs);
+  unsigned int vblur_shader = loadShader(vbulr_vs, blur_fs);
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
   glUseProgram(font_shader);
   glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -304,6 +306,8 @@ int main() {
   glDeleteProgram(normal_shader);
   glDeleteProgram(screen_shader);
   glDeleteProgram(font_shader);
+  glDeleteProgram(hblur_shader);
+  glDeleteProgram(vblur_shader);
 
   for (auto& i : Characters) {
     glDeleteTextures(1, &i.second.TextureID);
