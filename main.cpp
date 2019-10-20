@@ -75,8 +75,8 @@ int main() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  unsigned int normal_shader = loadShader(sh1_vs, sh1_fs);
-  unsigned int screen_shader = loadShader(sh2_vs, sh2_fs);
+  unsigned int normal_shader = loadShader(normal_vs, normal_fs);
+  unsigned int screen_shader = loadShader(screen_vs, screen_fs);
   unsigned int font_shader = loadShader(font_vs, font_fs);
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
   glUseProgram(font_shader);
@@ -175,7 +175,7 @@ int main() {
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-  unsigned int cube_texture = loadTexture("../res/marble.jpg");
+  unsigned int cube_texture = loadTexture("../res/wooden.jpg");
   unsigned int floor_texture = loadTexture("../res/metal.png");
 
   // create a new framebuffer
