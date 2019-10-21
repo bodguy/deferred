@@ -34,15 +34,20 @@ if(NOT GLM_FOUND)
     message(STATUS ">>> GLM not found")
 endif(NOT GLM_FOUND)
 
+find_package(Freetype REQUIRED)
+if(NOT FREETYPE_FOUND)
+    message(Error  "Freetype not found")
+endif(NOT FREETYPE_FOUND)
+
 add_executable(${CMAKE_PROJECT_NAME} main.cpp)
 if(OPENGL_FOUND AND GLEW_FOUND)
     # GLFW3_INCLUDE_DIR is /usr/local/include that includes GLFW, GL (GLEW) include dir
-    set(EXTRA_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
+    set(EXTRA_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS})
     target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ${EXTRA_INCLUDE_DIR})
     if(APPLE)
-      target_link_libraries(${CMAKE_PROJECT_NAME} ${COCOA_LIBS} ${IOKIT_LIBS} ${CORE_LIBS} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY})
+      target_link_libraries(${CMAKE_PROJECT_NAME} ${COCOA_LIBS} ${IOKIT_LIBS} ${CORE_LIBS} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
     elseif(LINUX)
-      target_link_libraries(${CMAKE_PROJECT_NAME} ${X11_LIBRARY} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY})
+      target_link_libraries(${CMAKE_PROJECT_NAME} ${X11_LIBRARY} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
     endif(APPLE)
 endif()
 
