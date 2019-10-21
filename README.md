@@ -1,6 +1,6 @@
 ### MacOs OpenGL bootstrap
 
-before to use
+before to build
 
 ```bash
 brew install glfw3
@@ -15,6 +15,14 @@ brew link glew
 ```bash
 brew install glm
 brew link glm
+```
+
+### linux-deb bootstrap
+
+before to build
+
+```bash
+sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libglm-dev libglfw3-dev libglew-dev
 ```
 
 ### dependencies
