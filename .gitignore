@@ -4,8 +4,9 @@
 !/cmake/
 !/.gitignore
 !/CMakeLists.txt
-!/main.cpp
+!/src/main.cpp
 !/README.md
-!/resource.h
+!/src/resource.h
 !/stb_image.h
+!/src/
 !/res/
