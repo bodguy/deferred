@@ -12,6 +12,8 @@
 #include "util.h"
 #include "framebuffer.h"
 
+#define FRMAEBUFFER_COUNT 6
+
 void render_text(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -184,28 +186,34 @@ int main() {
   unsigned int cube_texture = loadTexture("../res/wooden.jpg");
   unsigned int floor_texture = loadTexture("../res/metal.png");
 
-  Texture textureList[4] = {
+  Texture textureList[FRMAEBUFFER_COUNT] = {
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH / 2, SCR_HEIGHT / 2),
       Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
       Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
       Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
       Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT)
   };
 
-  Renderbuffer renderbufferList[4] = {
+  Renderbuffer renderbufferList[FRMAEBUFFER_COUNT] = {
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH / 2, SCR_HEIGHT / 2),
       Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
       Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
       Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
       Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT)
   };
 
-  Framebuffer framebufferList[4] = {
+  Framebuffer framebufferList[FRMAEBUFFER_COUNT] = {
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER)
   };
 
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < FRMAEBUFFER_COUNT; ++i) {
       framebufferList[i].attach(textureList[i]);
       framebufferList[i].attach(renderbufferList[i]);
       if (!framebufferList[i].check()) return -1;
@@ -227,7 +235,7 @@ int main() {
 
     processInput(window);
 
-    // first pass
+    // 1. drawing geometry pass
     {
       framebufferList[0].bind();
       glEnable(GL_DEPTH_TEST);
@@ -260,7 +268,7 @@ int main() {
       glBindVertexArray(0);
     }
 
-    // second pass
+    // 2. bloom bright filter pass
     {
       framebufferList[1].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -269,12 +277,11 @@ int main() {
       glBindVertexArray(quadVAO);
       textureList[0].bind();
 
-      glUseProgram(hblur_shader);
-      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
+      glUseProgram(bright_shader);
       glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
-    // 3. third pass
+    // 3. first hblur pass
     {
       framebufferList[2].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -282,12 +289,13 @@ int main() {
 
       glBindVertexArray(quadVAO);
       textureList[1].bind();
-      glUseProgram(vblur_shader);
-      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
+
+      glUseProgram(hblur_shader);
+      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
       glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
-    // 4. fourth pass
+    // 4. first vblur pass
     {
       framebufferList[3].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -295,12 +303,38 @@ int main() {
 
       glBindVertexArray(quadVAO);
       textureList[2].bind();
+      glUseProgram(vblur_shader);
+      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    // 5. second hblur pass
+    {
+      framebufferList[4].bind();
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glBindVertexArray(quadVAO);
+      textureList[3].bind();
       glUseProgram(hblur_shader);
       glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 4);
       glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
-    // 3. last pass (default framebuffer)
+    // 6. second vblur pass
+    {
+      framebufferList[5].bind();
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glBindVertexArray(quadVAO);
+      textureList[4].bind();
+      glUseProgram(vblur_shader);
+      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    // 7. last pass (default framebuffer)
     {
       glDisable(GL_DEPTH_TEST);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -308,11 +342,12 @@ int main() {
       glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      textureList[3].bind();
-      glUseProgram(vblur_shader);
-      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, textureList[0].id);
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D, textureList[5].id);
+      glUseProgram(combine_shader);
       glDrawArrays(GL_TRIANGLES, 0, 6);
-
 
       render_text(font_shader, "blur_x: " + std::to_string(blur_w) + ", blur_y: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
     }
