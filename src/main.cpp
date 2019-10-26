@@ -51,6 +51,9 @@ struct Character {
 std::map<GLchar, Character> Characters;
 GLuint fontVAO, fontVBO;
 
+unsigned int blur_w = 1280;
+unsigned int blur_h = 720;
+
 int main() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -201,6 +204,28 @@ int main() {
     return -1;
   }
 
+  Texture tex_attachment3(tex_target::TEXTURE2D);
+  tex_attachment3.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
+  Renderbuffer rb3(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
+  rb3.storage();
+  Framebuffer fb3(framebuffer_target::FRAMEBUFFER);
+  fb3.attach(tex_attachment3);
+  fb3.attach_renderbuffer(rb3);
+  if (!fb3.check()) {
+    return -1;
+  }
+
+  Texture tex_attachment4(tex_target::TEXTURE2D);
+  tex_attachment4.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
+  Renderbuffer rb4(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
+  rb4.storage();
+  Framebuffer fb4(framebuffer_target::FRAMEBUFFER);
+  fb4.attach(tex_attachment4);
+  fb4.attach_renderbuffer(rb4);
+  if (!fb4.check()) {
+    return -1;
+  }
+
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
@@ -221,7 +246,7 @@ int main() {
     {
       fb.bind();
       glEnable(GL_DEPTH_TEST);
-      glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glUseProgram(normal_shader);
@@ -252,45 +277,59 @@ int main() {
 
     // second pass
     {
-      fb.unbind();
-      glDisable(GL_DEPTH_TEST);
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessery actually, since we won't be able to see behind the quad anyways)
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      tex_attachment.bind(); // use the color attachment texture as the texture of the quad plane (THIS IS POINT!)
-
-      glUseProgram(hblur_shader);
-      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), SCR_WIDTH);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
+      fb2.bind();
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       tex_attachment.bind();
 
+      glUseProgram(hblur_shader);
+      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    // 3. third pass
+    {
+      fb3.bind();
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glBindVertexArray(quadVAO);
+      tex_attachment2.bind();
       glUseProgram(vblur_shader);
-      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), SCR_HEIGHT);
+      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    // 4. fourth pass
+    {
+      fb4.bind();
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glBindVertexArray(quadVAO);
+      tex_attachment3.bind();
+      glUseProgram(hblur_shader);
+      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 4);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    // 3. last pass
+    {
+      glDisable(GL_DEPTH_TEST);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      glBindVertexArray(quadVAO);
+      tex_attachment4.bind();
+      glUseProgram(vblur_shader);
+      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
       glDrawArrays(GL_TRIANGLES, 0, 6);
 
-      // ==================================================================
-//      glBindVertexArray(quadVAO);
-//      tex_attachment.bind();
-//
-//      glUseProgram(hblur_shader);
-//      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), SCR_WIDTH / 8);
-//      glDrawArrays(GL_TRIANGLES, 0, 6);
-//
-//      glBindVertexArray(quadVAO);
-//      tex_attachment.bind();
-//
-//      glUseProgram(vblur_shader);
-//      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), SCR_HEIGHT / 8);
-//      glDrawArrays(GL_TRIANGLES, 0, 6);
-//
-//      tex_attachment.unbind();
 
-      render_text(font_shader, "This is sample text sucks!!!!!!!!!!!!!!!", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
-      render_text(font_shader, "(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
-      render_text(font_shader, "Hello world!@#$%^&*()_+|", 340.0f, 270.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
+      render_text(font_shader, "blur_x: " + std::to_string(blur_w) + ", blur_y: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
     }
 
     glfwSwapBuffers(window);
@@ -338,6 +377,23 @@ void processInput(GLFWwindow *window) {
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     } else {
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+  }
+  int step = 50;
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    if (blur_w > 0) {
+      blur_w-=step;
+    }
+    if (blur_h > 0) {
+      blur_h-=step;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+    if (blur_w < 2480) {
+      blur_w+=step;
+    }
+    if (blur_h < 1440) {
+      blur_h+=step;
     }
   }
 }

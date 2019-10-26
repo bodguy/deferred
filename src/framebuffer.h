@@ -29,7 +29,7 @@ public:
 
   void create(unsigned int w, unsigned int h, void* ptr) {
     glBindTexture(static_cast<GLenum>(textarget), id);
-    glTexImage2D(static_cast<GLenum>(textarget), 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, ptr);
+    glTexImage2D(static_cast<GLenum>(textarget), 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, ptr);
     glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
