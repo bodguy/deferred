@@ -4,9 +4,7 @@
 !/cmake/
 !/.gitignore
 !/CMakeLists.txt
-!/src/main.cpp
 !/README.md
-!/src/util.h
-!/src/stb_image.h
 !/src/
 !/res/
+!/shaders/

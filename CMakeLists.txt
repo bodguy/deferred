@@ -25,9 +25,9 @@ if(NOT GLEW_FOUND)
 endif(NOT GLEW_FOUND)
 
 find_package(glfw3 REQUIRED)
-if(NOT GLFW_FOUND)
+if(NOT GLFW3_FOUND)
     message(STATUS ">>> GLFW not found")
-endif(NOT GLFW_FOUND)
+endif(NOT GLFW3_FOUND)
 
 find_package(GLM REQUIRED)
 if(NOT GLM_FOUND)
@@ -40,15 +40,18 @@ if(NOT FREETYPE_FOUND)
 endif(NOT FREETYPE_FOUND)
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp src/util.h src/framebuffer.h)
-if(OPENGL_FOUND AND GLEW_FOUND)
+if(OPENGL_FOUND AND GLEW_FOUND AND GLFW3_FOUND)
     # GLFW3_INCLUDE_DIR is /usr/local/include that includes GLFW, GL (GLEW) include dir
     set(EXTRA_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS})
     target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC ${EXTRA_INCLUDE_DIR})
+
     if(APPLE)
-      target_link_libraries(${CMAKE_PROJECT_NAME} ${COCOA_LIBS} ${IOKIT_LIBS} ${CORE_LIBS} ${GLEW} ${OPENGL_gl_LIBRARY} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
+      set(GLEW_LIBS "/usr/local/lib/libGLEW.a")
+      set(EXTRA_LIB_DIR ${COCOA_LIBS} ${IOKIT_LIBS} ${CORE_LIBS} ${GLEW_LIBS} ${OPENGL_gl_LIBRARY} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
     elseif(LINUX)
-      target_link_libraries(${CMAKE_PROJECT_NAME} ${X11_LIBRARY} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
-    endif(APPLE)
+      set(EXTRA_LIB_DIR ${X11_LIBRARY} ${OPENGL_gl_LIBRARY} ${GLEW} ${GLFW3_LIBRARY} ${FREETYPE_LIBRARY})
+    endif()
+    target_link_libraries(${CMAKE_PROJECT_NAME} ${EXTRA_LIB_DIR})
 endif()
 
 # print all of cmake variables to terminal
