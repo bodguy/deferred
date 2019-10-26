@@ -36,10 +36,13 @@ public:
     glTexImage2D(static_cast<GLenum>(textarget), 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, ptr);
     glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(static_cast<GLenum>(textarget), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(static_cast<GLenum>(textarget), 0);
   }
 
   void bind() {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(static_cast<GLenum>(textarget), id);
   }
 

@@ -3,163 +3,9 @@
 #ifndef RESOURCE_H
 #define RESOURCE_H
 
-std::string hbulr_vs = R"(#version 330 core
-in vec3 position;
-out vec2 blurTexCoords[11];
-
-uniform float targetWidth;
-
-void main(void) {
-  gl_Position = vec4(position, 1.0);
-  vec2 centerTexCoords = position.xy * 0.5 + 0.5;
-  float pixelSize = 1.0 / targetWidth;
-
-  for(int i = -5; i <= 5; i++) {
-    blurTexCoords[i+5] = centerTexCoords + vec2(pixelSize * i, 0.0);
-  }
-})";
-
-std::string vbulr_vs = R"(#version 330 core
-in vec3 position;
-out vec2 blurTexCoords[11];
-
-uniform float targetHeight;
-
-void main(void) {
-  gl_Position = vec4(position, 1.0);
-  vec2 centerTexCoords = position.xy * 0.5 + 0.5;
-  float pixelSize = 1.0 / targetHeight;
-
-  for(int i = -5; i <= 5; i++) {
-    blurTexCoords[i+5] = centerTexCoords + vec2(0.0, pixelSize * i);
-  }
-})";
-
-std::string blur_fs = R"(#version 330 core
-out vec4 out_colour;
-in vec2 blurTexCoords[11];
-
-uniform sampler2D originalTexture;
-
-void main(void) {
-  out_colour = vec4(0.0);
-  out_colour += texture(originalTexture, blurTexCoords[0]) * 0.0093;
-  out_colour += texture(originalTexture, blurTexCoords[1]) * 0.028002;
-  out_colour += texture(originalTexture, blurTexCoords[2]) * 0.065984;
-  out_colour += texture(originalTexture, blurTexCoords[3]) * 0.121703;
-  out_colour += texture(originalTexture, blurTexCoords[4]) * 0.175713;
-  out_colour += texture(originalTexture, blurTexCoords[5]) * 0.198596;
-  out_colour += texture(originalTexture, blurTexCoords[6]) * 0.175713;
-  out_colour += texture(originalTexture, blurTexCoords[7]) * 0.121703;
-  out_colour += texture(originalTexture, blurTexCoords[8]) * 0.065984;
-  out_colour += texture(originalTexture, blurTexCoords[9]) * 0.028002;
-  out_colour += texture(originalTexture, blurTexCoords[10]) * 0.0093;
-})";
-
-std::string font_vs = R"(#version 330 core
-layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
-out vec2 TexCoords;
-
-uniform mat4 projection;
-
-void main()
-{
-    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
-    TexCoords = vertex.zw;
-})";
-
-std::string font_fs = R"(#version 330 core
-in vec2 TexCoords;
-out vec4 color;
-
-uniform sampler2D text;
-uniform vec3 textColor;
-
-void main()
-{
-    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
-    color = vec4(textColor, 1.0) * sampled;
-})";
-
-std::string normal_vs = R"(#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoords;
-
-out vec2 TexCoords;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-
-void main()
-{
-    TexCoords = aTexCoords;
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
-})";
-
-std::string normal_fs = R"(#version 330 core
-out vec4 FragColor;
-
-in vec2 TexCoords;
-
-uniform sampler2D texture1;
-
-void main()
-{
-    FragColor = texture(texture1, TexCoords);
-})";
-
-std::string screen_vs = R"(#version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-
-out vec2 TexCoords;
-
-void main()
-{
-    TexCoords = aTexCoords;
-    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-}  )";
-
-std::string screen_fs = R"(#version 330 core
-out vec4 FragColor;
-
-in vec2 TexCoords;
-
-uniform sampler2D screenTexture;
-const float offset = 1.0 / 300.0;
-
-void main()
-{
-    vec2 offsets[9] = vec2[](
-        vec2(-offset,  offset), // top-left
-        vec2( 0.0f,    offset), // top-center
-        vec2( offset,  offset), // top-right
-        vec2(-offset,  0.0f),   // center-left
-        vec2( 0.0f,    0.0f),   // center-center
-        vec2( offset,  0.0f),   // center-right
-        vec2(-offset, -offset), // bottom-left
-        vec2( 0.0f,   -offset), // bottom-center
-        vec2( offset, -offset)  // bottom-right
-    );
-
-float kernel[9] = float[](
-        1, 1, 1,
-        1, -8, 1,
-        1, 1, 1
-    );
-
-    vec3 sampleTex[9];
-    for(int i = 0; i < 9; i++)
-    {
-        sampleTex[i] = vec3(texture(screenTexture, TexCoords.st + offsets[i]));
-    }
-    vec3 col = vec3(0.0);
-    for(int i = 0; i < 9; i++)
-        col += sampleTex[i] * kernel[i];
-
-    FragColor = vec4(col, 1.0);
-} )";
+bool loadFile(const std::string& filepath, std::string& out_source);
+unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& fs_name);
+unsigned int loadTexture(char const * path);
 
 float cubeVertices[] = {
         // positions          // texture Coords
@@ -227,38 +73,60 @@ float quadVertices[] = { // vertex attributes for a quad that fills the entire s
         1.0f,  1.0f,  1.0f, 1.0f
 };
 
-unsigned int loadShader(const std::string& vs, const std::string& fs) {
+bool loadFile(const std::string& filepath, std::string& out_source) {
+  FILE* fp = NULL;
+  fp = fopen(filepath.c_str(), "r");
+  if (!fp) return false;
+  fseek(fp, 0, SEEK_END);
+  size_t size = static_cast<size_t>(ftell(fp));
+  fseek(fp, 0, SEEK_SET);
+  char* buffer = (char*)malloc(sizeof(char) * size);
+  if (!buffer) return false;
+  fread(buffer, size, 1, fp);
+  out_source.assign(buffer, size);
+  free(buffer);
+  fclose(fp);
+  return true;
+}
+
+unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& fs_name) {
+  std::string vertexSource, fragmentSource;
+  bool result = loadFile(vs_name, vertexSource);
+  if (!result) return 0;
+  result = loadFile(fs_name, fragmentSource);
+  if (!result) return 0;
+
   // vertex shader
-  unsigned int vertexShader;
-  vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  const char* vertexShaderSource = vs.c_str();
+  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  const char* vertexShaderSource = vertexSource.c_str();
   glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
   glCompileShader(vertexShader);
-  // check for shader compile errors
+
   int success;
   char infoLog[512];
+  // check for shader compile errors
   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-  if (!success)
-  {
+  if (!success) {
     glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-    std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    std::cout << "shader compile error in " << vs_name << std::endl << infoLog << std::endl;
+    return 0;
   }
 
   // fragment shader
-  int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-  const char* fragmentShaderSource = fs.c_str();
+  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  const char* fragmentShaderSource = fragmentSource.c_str();
   glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
   glCompileShader(fragmentShader);
   // check for shader compile errors
   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
   if (!success) {
     glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-    std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    std::cout << "shader compile error in " << fs_name << std::endl << infoLog << std::endl;
     return 0;
   }
 
-  // link shaders
-  int shaderProgram = glCreateProgram();
+  // link program
+  unsigned int shaderProgram = glCreateProgram();
   glAttachShader(shaderProgram, vertexShader);
   glAttachShader(shaderProgram, fragmentShader);
   glLinkProgram(shaderProgram);
@@ -266,7 +134,7 @@ unsigned int loadShader(const std::string& vs, const std::string& fs) {
   glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
   if (!success) {
     glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-    std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    std::cout << "program linking error with " << vs_name << "and " << fs_name << std::endl << infoLog << std::endl;
     return 0;
   }
   glDeleteShader(vertexShader);
@@ -274,7 +142,6 @@ unsigned int loadShader(const std::string& vs, const std::string& fs) {
 
   return shaderProgram;
 }
-
 unsigned int loadTexture(char const * path) {
   unsigned int textureID;
   glGenTextures(1, &textureID);

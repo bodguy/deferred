@@ -76,11 +76,10 @@ int main() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  unsigned int normal_shader = loadShader(normal_vs, normal_fs);
-  unsigned int screen_shader = loadShader(screen_vs, screen_fs);
-  unsigned int font_shader = loadShader(font_vs, font_fs);
-  unsigned int hblur_shader = loadShader(hbulr_vs, blur_fs);
-  unsigned int vblur_shader = loadShader(vbulr_vs, blur_fs);
+  unsigned int normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
+  unsigned int font_shader = loadShaderFromFile("../shaders/font/font_vs.shader", "../shaders/font/font_fs.shader");
+  unsigned int hblur_shader = loadShaderFromFile("../shaders/guassian_blur/hblur_vs.shader", "../shaders/guassian_blur/blur_fs.shader");
+  unsigned int vblur_shader = loadShaderFromFile("../shaders/guassian_blur/vblur_vs.shader", "../shaders/guassian_blur/blur_fs.shader");
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
   glUseProgram(font_shader);
   glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -192,6 +191,17 @@ int main() {
     return -1;
   }
 
+  Texture tex_attachment2(tex_target::TEXTURE2D);
+  tex_attachment2.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
+  Renderbuffer rb2(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
+  rb2.storage();
+  Framebuffer fb2(framebuffer_target::FRAMEBUFFER);
+  fb2.attach(tex_attachment2);
+  fb2.attach_renderbuffer(rb2);
+  if (!fb2.check()) {
+    return -1;
+  }
+
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
@@ -248,10 +258,36 @@ int main() {
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // set clear color to white (not really necessery actually, since we won't be able to see behind the quad anyways)
       glClear(GL_COLOR_BUFFER_BIT);
 
-      glUseProgram(screen_shader);
       glBindVertexArray(quadVAO);
-      tex_attachment.bind(); // use the color attachment texture as the texture of the quad plane
+      tex_attachment.bind(); // use the color attachment texture as the texture of the quad plane (THIS IS POINT!)
+
+      glUseProgram(hblur_shader);
+      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), SCR_WIDTH);
       glDrawArrays(GL_TRIANGLES, 0, 6);
+
+      glBindVertexArray(quadVAO);
+      tex_attachment.bind();
+
+      glUseProgram(vblur_shader);
+      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), SCR_HEIGHT);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+
+      // ==================================================================
+//      glBindVertexArray(quadVAO);
+//      tex_attachment.bind();
+//
+//      glUseProgram(hblur_shader);
+//      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), SCR_WIDTH / 8);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//
+//      glBindVertexArray(quadVAO);
+//      tex_attachment.bind();
+//
+//      glUseProgram(vblur_shader);
+//      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), SCR_HEIGHT / 8);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//
+//      tex_attachment.unbind();
 
       render_text(font_shader, "This is sample text sucks!!!!!!!!!!!!!!!", 25.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
       render_text(font_shader, "(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
@@ -270,7 +306,6 @@ int main() {
   glDeleteBuffers(1, &quadVBO);
 
   glDeleteProgram(normal_shader);
-  glDeleteProgram(screen_shader);
   glDeleteProgram(font_shader);
   glDeleteProgram(hblur_shader);
   glDeleteProgram(vblur_shader);
