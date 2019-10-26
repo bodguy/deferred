@@ -5,12 +5,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#define STB_IMAGE_IMPLEMENTATION
-#include "../stb_image.h"
-#include "resource.h"
 // FreeType
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include "util.h"
 #include "framebuffer.h"
 
 void render_text(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);

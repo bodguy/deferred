@@ -1,7 +1,3 @@
-//
-// Created by bodguy on 2019/10/25.
-//
-
 #ifndef DEFERRED_FRAMEBUFFER_H
 #define DEFERRED_FRAMEBUFFER_H
 

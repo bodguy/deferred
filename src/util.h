@@ -1,7 +1,9 @@
-#include <string>
-
 #ifndef RESOURCE_H
 #define RESOURCE_H
+
+#include <string>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 bool loadFile(const std::string& filepath, std::string& out_source);
 unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& fs_name);
@@ -142,6 +144,7 @@ unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& f
 
   return shaderProgram;
 }
+
 unsigned int loadTexture(char const * path) {
   unsigned int textureID;
   glGenTextures(1, &textureID);

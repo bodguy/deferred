@@ -6,7 +6,7 @@
 !/CMakeLists.txt
 !/src/main.cpp
 !/README.md
-!/src/resource.h
-!/stb_image.h
+!/src/util.h
+!/src/stb_image.h
 !/src/
 !/res/
