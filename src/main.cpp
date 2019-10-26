@@ -82,6 +82,8 @@ int main() {
   unsigned int font_shader = loadShaderFromFile("../shaders/font/font_vs.shader", "../shaders/font/font_fs.shader");
   unsigned int hblur_shader = loadShaderFromFile("../shaders/guassian_blur/hblur_vs.shader", "../shaders/guassian_blur/blur_fs.shader");
   unsigned int vblur_shader = loadShaderFromFile("../shaders/guassian_blur/vblur_vs.shader", "../shaders/guassian_blur/blur_fs.shader");
+  unsigned int bright_shader = loadShaderFromFile("../shaders/bloom/bloom_vs.shader", "../shaders/bloom/brighter_fs.shader");
+  unsigned int combine_shader = loadShaderFromFile("../shaders/bloom/bloom_vs.shader", "../shaders/bloom/combine_fs.shader");
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
   glUseProgram(font_shader);
   glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -182,48 +184,31 @@ int main() {
   unsigned int cube_texture = loadTexture("../res/wooden.jpg");
   unsigned int floor_texture = loadTexture("../res/metal.png");
 
-  Texture tex_attachment(tex_target::TEXTURE2D);
-  tex_attachment.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
-  Renderbuffer rb(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
-  rb.storage();
-  Framebuffer fb(framebuffer_target::FRAMEBUFFER);
-  fb.attach(tex_attachment);
-  fb.attach_renderbuffer(rb);
-  if (!fb.check()) {
-    return -1;
-  }
+  Texture textureList[4] = {
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
+      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT)
+  };
 
-  Texture tex_attachment2(tex_target::TEXTURE2D);
-  tex_attachment2.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
-  Renderbuffer rb2(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
-  rb2.storage();
-  Framebuffer fb2(framebuffer_target::FRAMEBUFFER);
-  fb2.attach(tex_attachment2);
-  fb2.attach_renderbuffer(rb2);
-  if (!fb2.check()) {
-    return -1;
-  }
+  Renderbuffer renderbufferList[4] = {
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
+      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT)
+  };
 
-  Texture tex_attachment3(tex_target::TEXTURE2D);
-  tex_attachment3.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
-  Renderbuffer rb3(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
-  rb3.storage();
-  Framebuffer fb3(framebuffer_target::FRAMEBUFFER);
-  fb3.attach(tex_attachment3);
-  fb3.attach_renderbuffer(rb3);
-  if (!fb3.check()) {
-    return -1;
-  }
+  Framebuffer framebufferList[4] = {
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
+      Framebuffer(FramebufferTarget::FRAMEBUFFER)
+  };
 
-  Texture tex_attachment4(tex_target::TEXTURE2D);
-  tex_attachment4.create(SCR_WIDTH, SCR_HEIGHT, nullptr);
-  Renderbuffer rb4(renderbuffer_format::D24_S8, SCR_WIDTH, SCR_HEIGHT);
-  rb4.storage();
-  Framebuffer fb4(framebuffer_target::FRAMEBUFFER);
-  fb4.attach(tex_attachment4);
-  fb4.attach_renderbuffer(rb4);
-  if (!fb4.check()) {
-    return -1;
+  for (int i = 0; i < 4; ++i) {
+      framebufferList[i].attach(textureList[i]);
+      framebufferList[i].attach(renderbufferList[i]);
+      if (!framebufferList[i].check()) return -1;
   }
 
   while (!glfwWindowShouldClose(window)) {
@@ -244,7 +229,7 @@ int main() {
 
     // first pass
     {
-      fb.bind();
+      framebufferList[0].bind();
       glEnable(GL_DEPTH_TEST);
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -277,12 +262,12 @@ int main() {
 
     // second pass
     {
-      fb2.bind();
+      framebufferList[1].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      tex_attachment.bind();
+      textureList[0].bind();
 
       glUseProgram(hblur_shader);
       glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
@@ -291,12 +276,12 @@ int main() {
 
     // 3. third pass
     {
-      fb3.bind();
+      framebufferList[2].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      tex_attachment2.bind();
+      textureList[1].bind();
       glUseProgram(vblur_shader);
       glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
       glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -304,18 +289,18 @@ int main() {
 
     // 4. fourth pass
     {
-      fb4.bind();
+      framebufferList[3].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      tex_attachment3.bind();
+      textureList[2].bind();
       glUseProgram(hblur_shader);
       glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 4);
       glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
-    // 3. last pass
+    // 3. last pass (default framebuffer)
     {
       glDisable(GL_DEPTH_TEST);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -323,7 +308,7 @@ int main() {
       glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      tex_attachment4.bind();
+      textureList[3].bind();
       glUseProgram(vblur_shader);
       glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
       glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -347,6 +332,8 @@ int main() {
   glDeleteProgram(font_shader);
   glDeleteProgram(hblur_shader);
   glDeleteProgram(vblur_shader);
+  glDeleteProgram(bright_shader);
+  glDeleteProgram(combine_shader);
 
   for (auto& i : Characters) {
     glDeleteTextures(1, &i.second.TextureID);

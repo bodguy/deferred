@@ -3,28 +3,37 @@
 
 #include <GL/glew.h>
 
-enum class framebuffer_target {
+enum class FramebufferTarget {
   FRAMEBUFFER = GL_FRAMEBUFFER,
   READ_FRAMEBUFFER = GL_READ_FRAMEBUFFER,
   DRAW_FRAMEBUFFER = GL_DRAW_FRAMEBUFFER,
 };
 
-enum class tex_target {
+enum class TextureTarget {
   TEXTURE2D = GL_TEXTURE_2D,
 };
 
-enum class renderbuffer_format {
+enum class RenderbufferFormat {
   D24_S8 = GL_DEPTH24_STENCIL8,
 };
 
 class Texture {
 public:
-  Texture(tex_target target) : id(0), textarget(target) {
+  Texture(TextureTarget target) : id(0), textarget(target) {
     glGenTextures(1, &id);
+  }
+
+  Texture(TextureTarget target, unsigned int w, unsigned int h) : id(0), width(w), height(h), textarget(target) {
+    glGenTextures(1, &id);
+    createEmpty();
   }
 
   ~Texture() {
     glDeleteTextures(1, &id);
+  }
+
+  void createEmpty() {
+    create(width, height, nullptr);
   }
 
   void create(unsigned int w, unsigned int h, void* ptr) {
@@ -46,14 +55,15 @@ public:
     glBindTexture(static_cast<GLenum>(textarget), 0);
   }
 
-  unsigned int id;
-  tex_target textarget;
+  unsigned int id, width, height;
+  TextureTarget textarget;
 };
 
 class Renderbuffer {
 public:
-  Renderbuffer(renderbuffer_format fmt, unsigned int width, unsigned int height) : id(0), format(fmt), w(width), h(height) {
+  Renderbuffer(RenderbufferFormat fmt, unsigned int width, unsigned int height) : id(0), format(fmt), w(width), h(height) {
     glGenRenderbuffers(1, &id);
+    storage();
   }
 
   ~Renderbuffer() {
@@ -75,13 +85,13 @@ public:
   }
 
   unsigned int id;
-  renderbuffer_format format;
+  RenderbufferFormat format;
   unsigned int w, h;
 };
 
 class Framebuffer {
 public:
-  Framebuffer(framebuffer_target t) : id(0), target(t), last_attachment_count(0) {
+  Framebuffer(FramebufferTarget t) : id(0), target(t), last_attachment_count(0) {
     glGenFramebuffers(1, &id);
   }
 
@@ -96,7 +106,7 @@ public:
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  void attach_renderbuffer(const Renderbuffer& rb) {
+  void attach(const Renderbuffer& rb) {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb.id);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -121,7 +131,7 @@ public:
   }
 
   unsigned int id;
-  framebuffer_target target;
+  FramebufferTarget target;
   unsigned int last_attachment_count;
 };
 
