@@ -55,6 +55,8 @@ GLuint fontVAO, fontVBO;
 
 unsigned int blur_w = 1280;
 unsigned int blur_h = 720;
+glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+float near_plane = 1.0f, far_plane = 7.5f;
 
 int main() {
   glfwInit();
@@ -86,6 +88,8 @@ int main() {
   unsigned int vblur_shader = loadShaderFromFile("../shaders/guassian_blur/vblur_vs.shader", "../shaders/guassian_blur/blur_fs.shader");
   unsigned int bright_shader = loadShaderFromFile("../shaders/bloom/bloom_vs.shader", "../shaders/bloom/brighter_fs.shader");
   unsigned int combine_shader = loadShaderFromFile("../shaders/bloom/bloom_vs.shader", "../shaders/bloom/combine_fs.shader");
+  unsigned int depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
+  unsigned int depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader", "../shaders/shadow/depth_visual_fs.shader");
   glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(SCR_WIDTH), 0.0f, static_cast<GLfloat>(SCR_HEIGHT));
   glUseProgram(font_shader);
   glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -233,122 +237,170 @@ int main() {
 
     processInput(window);
 
-    // 1. drawing geometry pass
+    // 0. drawing geometry to depthmap
     {
-      framebufferList[0].bind();
+      framebufferList[6].bind();
       glEnable(GL_DEPTH_TEST);
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_DEPTH_BUFFER_BIT);
 
-      glUseProgram(normal_shader);
-      glm::mat4 model = glm::mat4(1.0f);
-      glm::mat4 view = glm::lookAt(pos, pos + front, up);
-      glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, &view[0][0]);
-      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, &projection[0][0]);
+      glUseProgram(depth_shader);
+      glm::mat4 lightProjection, lightView;
+      glm::mat4 lightSpaceMatrix;
+      lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+      lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+      lightSpaceMatrix = lightProjection * lightView;
+      glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
 
       // first cube
+      glm::mat4 model = glm::mat4(1.0f);
       glBindVertexArray(cubeVAO);
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, cube_texture);
       model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+      glUniformMatrix4fv(glGetUniformLocation(depth_shader, "model"), 1, GL_FALSE, &model[0][0]);
       glDrawArrays(GL_TRIANGLES, 0, 36);
       // another cube
       model = glm::translate(model, glm::vec3(3.0f, 0.0f, 2.0f));
-      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+      glUniformMatrix4fv(glGetUniformLocation(depth_shader, "model"), 1, GL_FALSE, &model[0][0]);
       glDrawArrays(GL_TRIANGLES, 0, 36);
       // floor
       glBindVertexArray(planeVAO);
       glBindTexture(GL_TEXTURE_2D, floor_texture);
-      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
+      glUniformMatrix4fv(glGetUniformLocation(depth_shader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
       glDrawArrays(GL_TRIANGLES, 0, 6);
       glBindVertexArray(0);
       glDisable(GL_DEPTH_TEST);
     }
 
-    // 2. bloom bright filter pass
-    {
-      framebufferList[1].bind();
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      textureList[0].bind();
-
-      glUseProgram(bright_shader);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    // 3. first hblur pass
-    {
-      framebufferList[2].bind();
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      textureList[1].bind();
-
-      glUseProgram(hblur_shader);
-      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    // 4. first vblur pass
-    {
-      framebufferList[3].bind();
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      textureList[2].bind();
-      glUseProgram(vblur_shader);
-      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    // 5. second hblur pass
-    {
-      framebufferList[4].bind();
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      textureList[3].bind();
-      glUseProgram(hblur_shader);
-      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 4);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    // 6. second vblur pass
-    {
-      framebufferList[5].bind();
-      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      glBindVertexArray(quadVAO);
-      textureList[4].bind();
-      glUseProgram(vblur_shader);
-      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    // 7. last pass (default framebuffer)
     {
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, textureList[0].id);
-      glActiveTexture(GL_TEXTURE1);
-      glBindTexture(GL_TEXTURE_2D, textureList[5].id);
-      glUseProgram(combine_shader);
+      textureList[6].bind();
+      glUseProgram(depth_visual_shader);
       glDrawArrays(GL_TRIANGLES, 0, 6);
-
-      render_text(font_shader, "blur_w: " + std::to_string(blur_w) + ", blur_h: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
     }
+
+    // 1. drawing geometry pass
+//    {
+//      framebufferList[0].bind();
+//      glEnable(GL_DEPTH_TEST);
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//      textureList[6].bind();
+//
+//      glUseProgram(normal_shader);
+//      glm::mat4 model = glm::mat4(1.0f);
+//      glm::mat4 view = glm::lookAt(pos, pos + front, up);
+//      glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+//      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, &view[0][0]);
+//      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, &projection[0][0]);
+//
+//      // first cube
+//      glBindVertexArray(cubeVAO);
+//      glActiveTexture(GL_TEXTURE0);
+//      glBindTexture(GL_TEXTURE_2D, cube_texture);
+//      model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+//      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+//      glDrawArrays(GL_TRIANGLES, 0, 36);
+//      // another cube
+//      model = glm::translate(model, glm::vec3(3.0f, 0.0f, 2.0f));
+//      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &model[0][0]);
+//      glDrawArrays(GL_TRIANGLES, 0, 36);
+//      // floor
+//      glBindVertexArray(planeVAO);
+//      glBindTexture(GL_TEXTURE_2D, floor_texture);
+//      glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//      glBindVertexArray(0);
+//      glDisable(GL_DEPTH_TEST);
+//    }
+//
+//    // 2. bloom bright filter pass
+//    {
+//      framebufferList[1].bind();
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      textureList[0].bind();
+//
+//      glUseProgram(bright_shader);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//    }
+//
+//    // 3. first hblur pass
+//    {
+//      framebufferList[2].bind();
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      textureList[1].bind();
+//
+//      glUseProgram(hblur_shader);
+//      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 2);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//    }
+//
+//    // 4. first vblur pass
+//    {
+//      framebufferList[3].bind();
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      textureList[2].bind();
+//      glUseProgram(vblur_shader);
+//      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 2);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//    }
+//
+//    // 5. second hblur pass
+//    {
+//      framebufferList[4].bind();
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      textureList[3].bind();
+//      glUseProgram(hblur_shader);
+//      glUniform1f(glGetUniformLocation(hblur_shader, "targetWidth"), blur_w / 4);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//    }
+//
+//    // 6. second vblur pass
+//    {
+//      framebufferList[5].bind();
+//      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      textureList[4].bind();
+//      glUseProgram(vblur_shader);
+//      glUniform1f(glGetUniformLocation(vblur_shader, "targetHeight"), blur_h / 4);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//    }
+//
+//    // 7. last pass (default framebuffer)
+//    {
+//      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+//      glClear(GL_COLOR_BUFFER_BIT);
+//
+//      glBindVertexArray(quadVAO);
+//      glActiveTexture(GL_TEXTURE0);
+//      glBindTexture(GL_TEXTURE_2D, textureList[0].id);
+//      glActiveTexture(GL_TEXTURE1);
+//      glBindTexture(GL_TEXTURE_2D, textureList[5].id);
+//      glUseProgram(combine_shader);
+//      glDrawArrays(GL_TRIANGLES, 0, 6);
+//
+//      render_text(font_shader, "blur_w: " + std::to_string(blur_w) + ", blur_h: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
+//    }
 
     glfwSwapBuffers(window);
     glfwPollEvents();
@@ -367,6 +419,8 @@ int main() {
   glDeleteProgram(vblur_shader);
   glDeleteProgram(bright_shader);
   glDeleteProgram(combine_shader);
+  glDeleteProgram(depth_shader);
+  glDeleteProgram(depth_visual_shader);
 
   for (auto& i : Characters) {
     glDeleteTextures(1, &i.second.TextureID);
