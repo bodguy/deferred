@@ -12,7 +12,7 @@
 #include "util.h"
 #include "framebuffer.h"
 
-#define FRMAEBUFFER_COUNT 6
+#define FRMAEBUFFER_COUNT 7
 
 void render_text(unsigned int shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -187,24 +187,18 @@ int main() {
   unsigned int floor_texture = loadTexture("../res/metal.png");
 
   Texture textureList[FRMAEBUFFER_COUNT] = {
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH / 2, SCR_HEIGHT / 2),
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT),
-      Texture(TextureTarget::TEXTURE2D, SCR_WIDTH, SCR_HEIGHT)
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH, SCR_HEIGHT),
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH / 2, SCR_HEIGHT / 2), // bright filter (dont need full size, becuase of blurring)
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH, SCR_HEIGHT),
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH, SCR_HEIGHT),
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH, SCR_HEIGHT),
+      Texture(InternalFormat::RGB16F, InternalFormat::RGB, PixelDataType::F, SCR_WIDTH, SCR_HEIGHT),
+      Texture(InternalFormat::DEPTH, InternalFormat::DEPTH, PixelDataType::F, AttachmentType::DEPTH, SCR_WIDTH, SCR_HEIGHT) // shadow mapping
   };
 
-  Renderbuffer renderbufferList[FRMAEBUFFER_COUNT] = {
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH / 2, SCR_HEIGHT / 2),
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT),
-      Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT)
-  };
-
+  Renderbuffer renderbuffer = Renderbuffer(RenderbufferFormat::D24_S8, SCR_WIDTH, SCR_HEIGHT);
   Framebuffer framebufferList[FRMAEBUFFER_COUNT] = {
+      Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
       Framebuffer(FramebufferTarget::FRAMEBUFFER),
@@ -213,9 +207,13 @@ int main() {
       Framebuffer(FramebufferTarget::FRAMEBUFFER)
   };
 
+  bool isFirst = true;
   for (int i = 0; i < FRMAEBUFFER_COUNT; ++i) {
       framebufferList[i].attach(textureList[i]);
-      framebufferList[i].attach(renderbufferList[i]);
+      if (isFirst) { // only first framebuffer (drawing geometry purpose) need renderbuffer for depth testing
+        framebufferList[i].attach(renderbuffer);
+        isFirst = !isFirst;
+      }
       if (!framebufferList[i].check()) return -1;
   }
 
@@ -266,13 +264,14 @@ int main() {
       glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, &glm::mat4(1.0f)[0][0]);
       glDrawArrays(GL_TRIANGLES, 0, 6);
       glBindVertexArray(0);
+      glDisable(GL_DEPTH_TEST);
     }
 
     // 2. bloom bright filter pass
     {
       framebufferList[1].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       textureList[0].bind();
@@ -285,7 +284,7 @@ int main() {
     {
       framebufferList[2].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       textureList[1].bind();
@@ -299,7 +298,7 @@ int main() {
     {
       framebufferList[3].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       textureList[2].bind();
@@ -312,7 +311,7 @@ int main() {
     {
       framebufferList[4].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       textureList[3].bind();
@@ -325,7 +324,7 @@ int main() {
     {
       framebufferList[5].bind();
       glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glClear(GL_COLOR_BUFFER_BIT);
 
       glBindVertexArray(quadVAO);
       textureList[4].bind();
@@ -336,7 +335,6 @@ int main() {
 
     // 7. last pass (default framebuffer)
     {
-      glDisable(GL_DEPTH_TEST);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
@@ -349,7 +347,7 @@ int main() {
       glUseProgram(combine_shader);
       glDrawArrays(GL_TRIANGLES, 0, 6);
 
-      render_text(font_shader, "blur_x: " + std::to_string(blur_w) + ", blur_y: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
+      render_text(font_shader, "blur_w: " + std::to_string(blur_w) + ", blur_h: " + std::to_string(blur_h), 5.0f, 5.0f, 0.5f, glm::vec3(1.f, 0.f, 0.f));
     }
 
     glfwSwapBuffers(window);
@@ -401,7 +399,7 @@ void processInput(GLFWwindow *window) {
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
   }
-  int step = 50;
+  int step = 30;
   if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
     if (blur_w > 0) {
       blur_w-=step;
