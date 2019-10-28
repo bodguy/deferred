@@ -161,6 +161,7 @@ bool RenderingEngine::initFont(const std::string& filename) {
     };
     character.printInfo();
     mCharMap.insert(std::pair<GLchar, Character>(c, character));
+    std::cout << "Total GlyphMap size: " << mCharMap.size() << std::endl;
   }
   glBindTexture(GL_TEXTURE_2D, 0);
   FT_Done_Face(face);
@@ -228,7 +229,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(-1.0f, 0.5f, 2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-  model = glm::scale(model, glm::vec3(0.25));
+  model = glm::scale(model, glm::vec3(0.5));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, &model[0][0]);
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }

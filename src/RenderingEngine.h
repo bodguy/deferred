@@ -15,7 +15,7 @@ struct Character {
     signed long Advance;    // Horizontal offset to advance to next glyph
 
     void printInfo() {
-      std::cout << "letter: " << letter << std::endl;
+      std::cout << "letter: " << (char)letter << " (ASCII: " << (unsigned int)letter << ")" << std::endl;
       std::cout << "Size.x: " << Size.x << ", Size.y: " << Size.y << std::endl;
       std::cout << "Bearing.x: " << Bearing.x << ", Bearing.y: " << Bearing.y << std::endl;
       std::cout << "Advance: " << Advance << std::endl;
