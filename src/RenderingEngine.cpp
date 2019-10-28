@@ -161,11 +161,11 @@ bool RenderingEngine::initFont(const std::string& filename) {
     };
     character.printInfo();
     mCharMap.insert(std::pair<GLchar, Character>(c, character));
-    std::cout << "Total GlyphMap size: " << mCharMap.size() << std::endl;
   }
   glBindTexture(GL_TEXTURE_2D, 0);
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
+  std::cout << "Total GlyphMap size: " << mCharMap.size() << std::endl;
   return true;
 }
 
@@ -195,7 +195,9 @@ int RenderingEngine::render() {
     keyboardCallback();
 
     renderFrame();
-    text("Learn OpenGL!", glm::vec2(5.f, 5.f), glm::vec3(1.f, 0.f, 0.f));
+    text("Learn OpenGL!", glm::vec2(5.f, 5.f), glm::vec3(1.f, 1.f, 0.f));
+    text("Shadow mapping Tutorial", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
+    text("PCF + Shadow acne (Moire) + Peter panning", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
 
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
