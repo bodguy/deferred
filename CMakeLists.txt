@@ -39,7 +39,7 @@ if(NOT FREETYPE_FOUND)
     message(Error  "Freetype not found")
 endif(NOT FREETYPE_FOUND)
 
-add_executable(${CMAKE_PROJECT_NAME} src/main.cpp src/util.h src/framebuffer.h)
+add_executable(${CMAKE_PROJECT_NAME} src/main.cpp src/util.h src/framebuffer.h src/RenderingEngine.cpp src/RenderingEngine.h)
 if(OPENGL_FOUND AND GLEW_FOUND AND GLFW3_FOUND)
     # GLFW3_INCLUDE_DIR is /usr/local/include that includes GLFW, GL (GLEW) include dir
     set(EXTRA_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS})
