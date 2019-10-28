@@ -36,7 +36,10 @@ RenderingEngine::~RenderingEngine() {
 }
 
 bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
-  glfwInit();
+  if (!glfwInit()) {
+    std::cout << "glfw init error" << std::endl;
+    return false;
+  }
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -56,6 +59,8 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
     instance->mouseCallback(x, y);
   });
   glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+  glfwPollEvents();
+  glfwSetCursorPos(mWindow, width/2, height/2);
 
   glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK) {
