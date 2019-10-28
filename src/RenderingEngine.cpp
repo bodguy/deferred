@@ -411,8 +411,13 @@ void RenderingEngine::keyboardCallback() {
   if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
     cameraPos += cameraRight * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_Q) == GLFW_PRESS)
-    lightPos += glm::vec3(1.f, 0.f, 0.f) * velocity;
+    cameraPos += cameraUp * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
+    cameraPos -= cameraUp * velocity;
+
+  if (glfwGetKey(mWindow, GLFW_KEY_1) == GLFW_PRESS)
+    lightPos += glm::vec3(1.f, 0.f, 0.f) * velocity;
+  if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS)
     lightPos -= glm::vec3(1.f, 0.f, 0.f) * velocity;
 }
 
