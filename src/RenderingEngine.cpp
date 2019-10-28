@@ -1,5 +1,4 @@
 #include "RenderingEngine.h"
-#include <iostream>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <ft2build.h>
@@ -8,13 +7,13 @@
 
 RenderingEngine::RenderingEngine()
 : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 0.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
-  cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()), width(0), height(0) {
-  deltaTime = 0.0f;
-  lastFrame = 0.0f;
-  Yaw = -90.0f;
-  Pitch = 0.0f;
-  MouseSensitivity = 0.1f;
-  firstMouse = true;
+  cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
+  deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
+  font_shader(0), depth_shader(0), shadow_shader(0),
+  fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0),
+  width(0), height(0),
+  wood_texture(0), depthMapFBO(0), depthMap(0) {
+  mCharMap.clear();
 }
 
 RenderingEngine::~RenderingEngine() {
@@ -24,9 +23,15 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
 
-  for (auto& i : Characters) {
+  for (auto& i : mCharMap) {
     glDeleteTextures(1, &i.second.TextureID);
   }
+  mCharMap.clear();
+}
+
+RenderingEngine& RenderingEngine::GetInstance() {
+  static RenderingEngine instance;
+  return instance;
 }
 
 bool RenderingEngine::initWindow(const std::string& title, int w, int h) {
@@ -40,22 +45,24 @@ bool RenderingEngine::initWindow(const std::string& title, int w, int h) {
   if (!mWindow) {
     std::cout << "glfw window init error" << std::endl;
     glfwTerminate();
-    return -1;
+    return false;
   }
   glfwMakeContextCurrent(mWindow);
   glfwSetFramebufferSizeCallback(mWindow, [](GLFWwindow* win, int w, int h) {
       glViewport(0, 0, w, h);
   });
-  glfwSetCursorPosCallback(mWindow, mouseCallback);
+  glfwSetCursorPosCallback(mWindow, [](GLFWwindow* w, double x, double y) {
+      RenderingEngine::GetInstance().mouseCallback(x, y);
+  });
 
   glewExperimental = GL_TRUE;
   if(glewInit() != GLEW_OK) {
     std::cout << "glew init error" << std::endl;
-    return -1;
+    return false;
   }
 
-  lastX = (float)w / 2.0;
-  lastY = (float)h / 2.0;
+  lastX = (float)w / 2.f;
+  lastY = (float)h / 2.f;
   width = w;
   height = h;
 }
@@ -86,6 +93,7 @@ void RenderingEngine::initVertex() {
 
 bool RenderingEngine::initFramebuffer() {
   const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+  // TODO: change to framebuffer class
   glGenFramebuffers(1, &depthMapFBO);
   // create depth texture
   glGenTextures(1, &depthMap);
@@ -104,16 +112,17 @@ bool RenderingEngine::initFramebuffer() {
 }
 
 bool RenderingEngine::initFont(const std::string& fontpath) {
-  // FreeType
   FT_Library ft;
-  // All functions return a value different than 0 whenever an error occurred
-  if (FT_Init_FreeType(&ft))
+  if (FT_Init_FreeType(&ft)) {
     std::cout << "Could not init FreeType Library" << std::endl;
+    return false;
+  }
 
-  // Load font as face
   FT_Face face;
-  if (FT_New_Face(ft, fontpath.c_str(), 0, &face))
+  if (FT_New_Face(ft, fontpath.c_str(), 0, &face)) {
     std::cout << "Failed to load font" << std::endl;
+    return false;
+  }
 
   // Set size to load glyphs as
   FT_Set_Pixel_Sizes(face, 0, 48);
@@ -141,27 +150,32 @@ bool RenderingEngine::initFont(const std::string& fontpath) {
     // Now store character for later use
     Character character = {
       font_texture,
+      c,
       glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
       glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
       face->glyph->advance.x
     };
-    Characters.insert(std::pair<GLchar, Character>(c, character));
+    character.printInfo();
+    mCharMap.insert(std::pair<GLchar, Character>(c, character));
   }
   glBindTexture(GL_TEXTURE_2D, 0);
-  // Destroy FreeType once we're finished
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
 }
 
 bool RenderingEngine::initShader() {
   font_shader = loadShaderFromFile("../shaders/font/font_vs.shader", "../shaders/font/font_fs.shader");
+  if (!font_shader) return false;
   depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
+  if (!depth_shader) return false;
   shadow_shader = loadShaderFromFile("../shaders/shadow/shadow_vs.shader", "../shaders/shadow/shadow_fs.shader");
+  if (!shadow_shader) return false;
   return true;
 }
 
-void RenderingEngine::initTexture() {
+bool RenderingEngine::initTexture() {
   wood_texture = loadTexture("../res/wood.png");
+  if (!wood_texture) return false;
 }
 
 int RenderingEngine::render() {
@@ -174,7 +188,7 @@ int RenderingEngine::render() {
     keyboardCallback();
 
     renderFrame();
-    text("", glm::vec2(5.f, 5.f), glm::vec3(1.f, 0.f, 0.f));
+    text("Learn OpenGL!", glm::vec2(5.f, 5.f), glm::vec3(1.f, 0.f, 0.f));
 
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
@@ -272,7 +286,7 @@ void RenderingEngine::text(std::string text, glm::vec2 pos, glm::vec3 color) {
   // Iterate through all characters
   std::string::const_iterator c;
   for (c = text.begin(); c != text.end(); c++) {
-    Character ch = Characters[*c];
+    Character ch = mCharMap[*c];
 
     GLfloat xpos = pos.x + ch.Bearing.x * 0.5;
     GLfloat ypos = pos.y - (ch.Size.y - ch.Bearing.y) * 0.5;
