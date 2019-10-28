@@ -5,14 +5,16 @@
 #include FT_FREETYPE_H
 #include "util.h"
 
+RenderingEngine* RenderingEngine::instance = nullptr;
 RenderingEngine::RenderingEngine()
-: mWindow(nullptr), cameraPos(glm::vec3(0.0f, 0.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
+: mWindow(nullptr), cameraPos(glm::vec3(0.0f, 1.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
   cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
   deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
   font_shader(0), depth_shader(0), shadow_shader(0),
   fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0),
   width(0), height(0),
   wood_texture(0), depthMapFBO(0), depthMap(0) {
+  instance = this;
   mCharMap.clear();
 }
 
@@ -27,11 +29,6 @@ RenderingEngine::~RenderingEngine() {
     glDeleteTextures(1, &i.second.TextureID);
   }
   mCharMap.clear();
-}
-
-RenderingEngine& RenderingEngine::GetInstance() {
-  static RenderingEngine instance;
-  return instance;
 }
 
 bool RenderingEngine::initWindow(const std::string& title, int w, int h) {
@@ -52,8 +49,9 @@ bool RenderingEngine::initWindow(const std::string& title, int w, int h) {
       glViewport(0, 0, w, h);
   });
   glfwSetCursorPosCallback(mWindow, [](GLFWwindow* w, double x, double y) {
-      RenderingEngine::GetInstance().mouseCallback(x, y);
+    instance->mouseCallback(x, y);
   });
+  glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
   glewExperimental = GL_TRUE;
   if(glewInit() != GLEW_OK) {
@@ -65,6 +63,8 @@ bool RenderingEngine::initWindow(const std::string& title, int w, int h) {
   lastY = (float)h / 2.f;
   width = w;
   height = h;
+
+  return true;
 }
 
 void RenderingEngine::initVertex() {
@@ -109,9 +109,13 @@ bool RenderingEngine::initFramebuffer() {
   glDrawBuffer(GL_NONE);
   glReadBuffer(GL_NONE);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    return false;
+  }
+  return true;
 }
 
-bool RenderingEngine::initFont(const std::string& fontpath) {
+bool RenderingEngine::initFont(const std::string& filename) {
   FT_Library ft;
   if (FT_Init_FreeType(&ft)) {
     std::cout << "Could not init FreeType Library" << std::endl;
@@ -119,7 +123,7 @@ bool RenderingEngine::initFont(const std::string& fontpath) {
   }
 
   FT_Face face;
-  if (FT_New_Face(ft, fontpath.c_str(), 0, &face)) {
+  if (FT_New_Face(ft, filename.c_str(), 0, &face)) {
     std::cout << "Failed to load font" << std::endl;
     return false;
   }
@@ -161,6 +165,7 @@ bool RenderingEngine::initFont(const std::string& fontpath) {
   glBindTexture(GL_TEXTURE_2D, 0);
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
+  return true;
 }
 
 bool RenderingEngine::initShader() {
@@ -176,6 +181,7 @@ bool RenderingEngine::initShader() {
 bool RenderingEngine::initTexture() {
   wood_texture = loadTexture("../res/wood.png");
   if (!wood_texture) return false;
+  return true;
 }
 
 int RenderingEngine::render() {
@@ -202,25 +208,25 @@ void RenderingEngine::renderScene(unsigned int shader) {
   // floor
   glm::mat4 model = glm::mat4(1.0f);
   glBindVertexArray(cubeVAO);
-  model = glm::scale(model, glm::vec3(0.1f));
+  model = glm::scale(model, glm::vec3(10.f, 0.01f, 10.f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, &model[0][0]);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   // first cube
   model = glm::mat4(1.0f);
   glBindVertexArray(cubeVAO);
-  model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
+  model = glm::translate(model, glm::vec3(0.0f, 3.5f, 0.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, &model[0][0]);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
+  model = glm::translate(model, glm::vec3(2.0f, 2.0f, 1.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, &model[0][0]);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   // another cube2
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
+  model = glm::translate(model, glm::vec3(-1.0f, 0.5f, 2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, &model[0][0]);
@@ -321,35 +327,35 @@ void RenderingEngine::text(std::string text, glm::vec2 pos, glm::vec3 color) {
 }
 
 void RenderingEngine::mouseCallback(double xpos, double ypos) {
-  int state = glfwGetMouseButton(mWindow, GLFW_MOUSE_BUTTON_RIGHT);
-  if (state == GLFW_PRESS) {
-    if (firstMouse) {
-      lastX = xpos;
-      lastY = ypos;
-      firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-
+  if (firstMouse) {
     lastX = xpos;
     lastY = ypos;
-
-    xoffset *= MouseSensitivity;
-    yoffset *= MouseSensitivity;
-
-    Yaw   += xoffset;
-    Pitch += yoffset;
-
-    if (Pitch > 89.0f)
-      Pitch = 89.0f;
-    if (Pitch < -89.0f)
-      Pitch = -89.0f;
+    firstMouse = false;
   }
+
+  float xoffset = xpos - lastX;
+  float yoffset = lastY - ypos;
+
+  lastX = xpos;
+  lastY = ypos;
+
+  xoffset *= MouseSensitivity;
+  yoffset *= MouseSensitivity;
+
+  Yaw   += xoffset;
+  Pitch += yoffset;
+
+  if (Pitch > 89.0f)
+    Pitch = 89.0f;
+  if (Pitch < -89.0f)
+    Pitch = -89.0f;
 }
 
 void RenderingEngine::keyboardCallback() {
-  float velocity = 2.5f * deltaTime;
+  float speed = 2.5f;
+  if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    speed = 7.5f;
+  float velocity = speed * deltaTime;
 
   if (glfwGetKey(mWindow, GLFW_KEY_W) == GLFW_PRESS)
     cameraPos += cameraFront * velocity;
@@ -362,7 +368,7 @@ void RenderingEngine::keyboardCallback() {
 }
 
 void RenderingEngine::updateDeltaTime() {
-  float currentFrame = (float)glfwGetTime();
+  auto currentFrame = (float)glfwGetTime();
   deltaTime = currentFrame - lastFrame;
   lastFrame = currentFrame;
 }

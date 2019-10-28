@@ -15,10 +15,10 @@ struct Character {
     signed long Advance;    // Horizontal offset to advance to next glyph
 
     void printInfo() {
-      std::cout << "letter: " << letter;
-      std::cout << "Size.x: " << Size.x << ", Size.y: " << Size.y;
-      std::cout << "Bearing.x: " << Bearing.x << ", Bearing.y: " << Bearing.y;
-      std::cout << "Advance: " << Advance;
+      std::cout << "letter: " << letter << std::endl;
+      std::cout << "Size.x: " << Size.x << ", Size.y: " << Size.y << std::endl;
+      std::cout << "Bearing.x: " << Bearing.x << ", Bearing.y: " << Bearing.y << std::endl;
+      std::cout << "Advance: " << Advance << std::endl;
     }
 };
 
@@ -28,11 +28,10 @@ public:
     RenderingEngine();
     ~RenderingEngine();
 
-    static RenderingEngine& GetInstance();
     bool initWindow(const std::string& title, int w, int h);
     void initVertex();
     bool initFramebuffer();
-    bool initFont(const std::string& fontpath);
+    bool initFont(const std::string& filename);
     bool initShader();
     bool initTexture();
     int render();
@@ -47,6 +46,8 @@ private:
     void updateCamera();
 
 private:
+    static RenderingEngine* instance;
+
     GLFWwindow* mWindow;
     glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
     float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
