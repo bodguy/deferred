@@ -12,7 +12,7 @@ RenderingEngine::RenderingEngine()
         : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 1.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
-          lightPos(0.5f, 2.f, 2.f),
+          lightPos(-2.0f, 4.0f, -1.0f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0),
@@ -120,10 +120,10 @@ bool RenderingEngine::initFramebuffer() {
   glBindTexture(GL_TEXTURE_2D, depthMap);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
                NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
   glDrawBuffer(GL_NONE);
   glReadBuffer(GL_NONE);
@@ -269,8 +269,6 @@ void RenderingEngine::renderScene(unsigned int shader) {
 void RenderingEngine::renderQuad(unsigned int shader) {
   glDisable(GL_DEPTH_TEST);
   glBindVertexArray(quadVAO);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, depthMap);
   glUseProgram(shader);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
@@ -314,6 +312,8 @@ void RenderingEngine::renderFrame() {
     glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
     glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
     glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+    glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
+    glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, wood_texture);
     glActiveTexture(GL_TEXTURE1);
@@ -325,6 +325,7 @@ void RenderingEngine::renderFrame() {
   {
     glViewport(width - 256, 0, 256, 256);
     glActiveTexture(GL_TEXTURE0);
+    glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
     glBindTexture(GL_TEXTURE_2D, depthMap);
     renderQuad(depth_visual_shader);
     glViewport(0, 0, width, height);
