@@ -39,6 +39,7 @@ public:
   void renderScene(unsigned int shader);
   void renderQuad(unsigned int shader);
   void renderFrame();
+  void renderLight();
   void text(std::string text, glm::vec2 pos, glm::vec3 color);
 
 private:
@@ -53,9 +54,10 @@ private:
   GLFWwindow *mWindow;
   glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
   glm::vec3 lightPos;
+  glm::mat4 projection, view;
   float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
-  unsigned int font_shader, depth_shader, shadow_shader, depth_visual_shader;
+  unsigned int font_shader, depth_shader, shadow_shader, depth_visual_shader, normal_shader;
   unsigned int fontVAO, fontVBO;
   unsigned int cubeVAO, cubeVBO;
   unsigned int quadVAO, quadVBO;

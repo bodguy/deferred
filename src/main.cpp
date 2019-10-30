@@ -3,10 +3,22 @@
 int main() {
   RenderingEngine engine;
   engine.initWindow("LearnOpenGL", 1024, 768);
-  engine.initShader();
-  engine.initFont("../res/arial.ttf");
-  engine.initTexture();
+  if (!engine.initShader()) {
+    std::cout << "shader init failed" << std::endl;
+    return -1;
+  }
+  if (!engine.initFont("../res/arial.ttf")) {
+    std::cout << "font init failed" << std::endl;
+    return -1;
+  }
+  if (!engine.initTexture()) {
+    std::cout << "texture init failed" << std::endl;
+    return -1;
+  }
   engine.initVertex();
-  engine.initFramebuffer();
+  if (!engine.initFramebuffer()) {
+    std::cout << "framebuffer init failed" << std::endl;
+    return -1;
+  }
   return engine.render();
 }
