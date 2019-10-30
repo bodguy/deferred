@@ -37,7 +37,7 @@ public:
   bool initTexture();
   int render();
   void renderScene(unsigned int shader);
-  void renderQuad(unsigned int shader);
+  void renderQuad();
   void renderFrame();
   void renderLight();
   void text(std::string text, glm::vec2 pos, glm::vec3 color);
@@ -61,6 +61,7 @@ private:
   unsigned int fontVAO, fontVBO;
   unsigned int cubeVAO, cubeVBO;
   unsigned int quadVAO, quadVBO;
+  unsigned int planeVAO, planeVBO;
   int width, height;
   unsigned int wood_texture;
   unsigned int depthMapFBO, depthMap;

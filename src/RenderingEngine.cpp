@@ -15,7 +15,7 @@ RenderingEngine::RenderingEngine()
           lightPos(-2.0f, 4.0f, -1.0f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0),
-          fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0),
+          fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           wood_texture(0),
           depthMapFBO(0), depthMap(0) {
@@ -88,6 +88,19 @@ void RenderingEngine::initVertex() {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 
+  glGenVertexArrays(1, &planeVAO);
+  glGenBuffers(1, &planeVBO);
+  glBindVertexArray(planeVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+  glBindVertexArray(0);
+
   glGenVertexArrays(1, &cubeVAO);
   glGenBuffers(1, &cubeVBO);
   glBindVertexArray(cubeVAO);
@@ -115,21 +128,18 @@ bool RenderingEngine::initFramebuffer() {
   const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
   // make depth framebuffer
   glGenFramebuffers(1, &depthMapFBO);
-  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
   glGenTextures(1, &depthMap);
   glBindTexture(GL_TEXTURE_2D, depthMap);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
-               NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
   glDrawBuffer(GL_NONE);
   glReadBuffer(GL_NONE);
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    return false;
-  }
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   return true;
 }
@@ -185,6 +195,7 @@ bool RenderingEngine::initFont(const std::string &filename) {
   glBindTexture(GL_TEXTURE_2D, 0);
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
   std::cout << "Total GlyphMap size: " << mCharMap.size() << std::endl;
   return true;
 }
@@ -196,8 +207,7 @@ bool RenderingEngine::initShader() {
   if (!depth_shader) return false;
   shadow_shader = loadShaderFromFile("../shaders/shadow/shadow_vs.shader", "../shaders/shadow/shadow_fs.shader");
   if (!shadow_shader) return false;
-  depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader",
-                                           "../shaders/shadow/depth_visual_fs.shader");
+  depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader", "../shaders/shadow/depth_visual_fs.shader");
   if (!depth_visual_shader) return false;
   normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
   if (!normal_shader) return false;
@@ -221,6 +231,8 @@ int RenderingEngine::render() {
 
     renderFrame();
     renderLight();
+    text("light pos: (" + std::to_string(lightPos.x) + ", " + std::to_string(lightPos.y) + ", " +
+         std::to_string(lightPos.z) + ")", glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera front: (" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
          std::to_string(cameraFront.z) + ")", glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera pos: (" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
@@ -240,96 +252,77 @@ int RenderingEngine::render() {
 void RenderingEngine::renderScene(unsigned int shader) {
   // floor
   glm::mat4 model = glm::mat4(1.0f);
-  glBindVertexArray(cubeVAO);
-  model = glm::scale(model, glm::vec3(10.f, 0.01f, 10.f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glBindVertexArray(planeVAO);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
   // first cube
   model = glm::mat4(1.0f);
-  glBindVertexArray(cubeVAO);
-  model = glm::translate(model, glm::vec3(0.0f, 3.5f, 0.0));
+  model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
   model = glm::scale(model, glm::vec3(0.5f));
+  glBindVertexArray(cubeVAO);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(2.0f, 2.0f, 1.0));
+  model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays(GL_TRIANGLES, 0, 36);
   // another cube2
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-1.0f, 0.5f, 2.0));
+  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-  model = glm::scale(model, glm::vec3(0.5));
+  model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-void RenderingEngine::renderQuad(unsigned int shader) {
-  glDisable(GL_DEPTH_TEST);
+void RenderingEngine::renderQuad() {
   glBindVertexArray(quadVAO);
-  glUseProgram(shader);
   glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void RenderingEngine::renderFrame() {
-  glm::mat4 lightProjection, lightView;
-  glm::mat4 lightSpaceMatrix;
+  glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.f, 25.f);
+  glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+  glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+  glEnable(GL_DEPTH_TEST);
   // 0. drawing geometry to depthmap
-  {
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glEnable(GL_DEPTH_TEST);
-    glViewport(0, 0, width, height);
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.f, 7.5f);
-    lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-    lightSpaceMatrix = lightProjection * lightView;
-
-    glUseProgram(depth_shader);
-    glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-    renderScene(depth_shader);
-  }
+  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  glUseProgram(depth_shader);
+  glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+  renderScene(depth_shader);
 
   // 1. drawing geometry to screen with depthmap
-  {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glEnable(GL_DEPTH_TEST);
-    glViewport(0, 0, width, height);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glUseProgram(shadow_shader);
-    projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
-    view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
-    glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
-    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-    glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
-    glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, wood_texture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
-    renderScene(shadow_shader);
-  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glUseProgram(shadow_shader);
+  projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
+  view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+  glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
+  glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
+  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+  glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, wood_texture);
+  glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, depthMap);
+  renderScene(shadow_shader);
 
   // 2. debug depthmap on the same framebuffer (screen)
-  {
-    glViewport(width - 256, 0, 256, 256);
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
-    renderQuad(depth_visual_shader);
-    glViewport(0, 0, width, height);
-  }
+  glViewport(width - 256, 0, 256, 256);
+  glUseProgram(depth_visual_shader);
+  glActiveTexture(GL_TEXTURE0);
+  glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
+  glBindTexture(GL_TEXTURE_2D, depthMap);
+  renderQuad();
+  glViewport(0, 0, width, height);
 }
 
 void RenderingEngine::renderLight() {
@@ -346,6 +339,7 @@ void RenderingEngine::renderLight() {
 }
 
 void RenderingEngine::text(std::string text, glm::vec2 pos, glm::vec3 color) {
+  glDisable(GL_DEPTH_TEST);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glUseProgram(font_shader);
