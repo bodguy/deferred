@@ -14,21 +14,36 @@ RenderingEngine::RenderingEngine()
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
           lightPos(-2.0f, 4.0f, -1.0f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
-          font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0),
+          font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           wood_texture(0),
+          depthCubemapFBO(0), depthCubemap(0),
           depthMapFBO(0), depthMap(0) {
   instance = this;
   mCharMap.clear();
 }
 
 RenderingEngine::~RenderingEngine() {
+  glDeleteVertexArrays(1, &fontVAO);
+  glDeleteBuffers(1, &fontVBO);
   glDeleteVertexArrays(1, &cubeVAO);
   glDeleteBuffers(1, &cubeVBO);
+  glDeleteVertexArrays(1, &quadVAO);
+  glDeleteBuffers(1, &quadVBO);
+  glDeleteVertexArrays(1, &planeVAO);
+  glDeleteBuffers(1, &planeVBO);
+  glDeleteFramebuffers(1, &depthCubemapFBO);
+  glDeleteTextures(1, &depthCubemap);
+  glDeleteFramebuffers(1, &depthMapFBO);
+  glDeleteTextures(1, &depthMap);
   glDeleteProgram(font_shader);
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
+  glDeleteProgram(depth_visual_shader);
+  glDeleteProgram(normal_shader);
+  glDeleteProgram(depth_cubemap_shader);
+  glDeleteTextures(1, &wood_texture);
 
   for (auto &i : mCharMap) {
     glDeleteTextures(1, &i.second.TextureID);
@@ -126,7 +141,6 @@ void RenderingEngine::initVertex() {
 
 bool RenderingEngine::initFramebuffer() {
   // make depth framebuffer
-  glGenFramebuffers(1, &depthMapFBO);
   glGenTextures(1, &depthMap);
   glBindTexture(GL_TEXTURE_2D, depthMap);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -136,12 +150,32 @@ bool RenderingEngine::initFramebuffer() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
   float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
   glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+  glGenFramebuffers(1, &depthMapFBO);
   glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
   glDrawBuffer(GL_NONE);
   glReadBuffer(GL_NONE);
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  // make depth cubemap framebuffer
+  glGenTextures(1, &depthCubemap);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+  for (int i = 0; i < 6; ++i) {
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+  }
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  glGenFramebuffers(1, &depthCubemapFBO);
+  glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+  glDrawBuffer(GL_NONE);
+  glReadBuffer(GL_NONE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
   return true;
 }
 

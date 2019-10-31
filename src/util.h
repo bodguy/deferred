@@ -137,10 +137,81 @@ unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& f
   glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
   if (!success) {
     glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-    std::cout << "program linking error with " << vs_name << "and " << fs_name << std::endl << infoLog << std::endl;
+    std::cout << "program linking error with " << vs_name << " and " << fs_name << std::endl << infoLog << std::endl;
     return 0;
   }
   glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
+
+  return shaderProgram;
+}
+
+unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& gs_name, const std::string& fs_name) {
+  std::string vertexSource, geometrySource, fragmentSource;
+  bool result = loadFile(vs_name, vertexSource);
+  if (!result) return 0;
+  result = loadFile(gs_name, geometrySource);
+  if (!result) return 0;
+  result = loadFile(fs_name, fragmentSource);
+  if (!result) return 0;
+
+  // vertex shader
+  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  const char* vertexShaderSource = vertexSource.c_str();
+  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+  glCompileShader(vertexShader);
+
+  int success;
+  char infoLog[512];
+  // check for shader compile errors
+  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+    std::cout << "shader compile error in " << vs_name << std::endl << infoLog << std::endl;
+    return 0;
+  }
+
+  // geometry shader
+  unsigned int geometryShader = glCreateShader(GL_FRAGMENT_SHADER);
+  const char* geometryShaderSource = geometrySource.c_str();
+  glShaderSource(geometryShader, 1, &geometryShaderSource, NULL);
+  glCompileShader(geometryShader);
+  // check for shader compile errors
+  glGetShaderiv(geometryShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(geometryShader, 512, NULL, infoLog);
+    std::cout << "shader compile error in " << gs_name << std::endl << infoLog << std::endl;
+    return 0;
+  }
+
+  // fragment shader
+  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  const char* fragmentShaderSource = fragmentSource.c_str();
+  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+  glCompileShader(fragmentShader);
+  // check for shader compile errors
+  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+    std::cout << "shader compile error in " << fs_name << std::endl << infoLog << std::endl;
+    return 0;
+  }
+
+  // link program
+  unsigned int shaderProgram = glCreateProgram();
+  glAttachShader(shaderProgram, vertexShader);
+  glAttachShader(shaderProgram, geometryShader);
+  glAttachShader(shaderProgram, fragmentShader);
+  glLinkProgram(shaderProgram);
+  // check for linking errors
+  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+  if (!success) {
+    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+    std::cout << "program linking error with " << vs_name << " and " << gs_name << " and " << fs_name << std::endl << infoLog << std::endl;
+    return 0;
+  }
+  glDeleteShader(vertexShader);
+  glDeleteShader(geometryShader);
   glDeleteShader(fragmentShader);
 
   return shaderProgram;
