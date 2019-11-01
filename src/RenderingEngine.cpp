@@ -13,7 +13,7 @@ RenderingEngine::RenderingEngine()
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
           lightPos(-2.0f, 4.0f, -1.0f),
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
-          dirLightNear(0.1f), dirLightFar(10.f),
+          dirLightNear(0.1f), dirLightFar(25.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
@@ -352,15 +352,15 @@ void RenderingEngine::renderFrame() {
   glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
   glEnable(GL_DEPTH_TEST);
-//  glEnable(GL_POLYGON_OFFSET_FILL);
-//  glPolygonOffset(1.1,4.0);
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.1,4.0);
   // 0. drawing geometry to depthmap
   glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
   glClear(GL_DEPTH_BUFFER_BIT);
   glUseProgram(depth_shader);
   glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
   renderScene(depth_shader);
-//  glDisable(GL_POLYGON_OFFSET_FILL);
+  glDisable(GL_POLYGON_OFFSET_FILL);
 
   // 1. drawing geometry to screen with depthmap
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
