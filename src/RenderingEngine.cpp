@@ -14,9 +14,9 @@ RenderingEngine::RenderingEngine()
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
           lightPos(-2.0f, 4.0f, -1.0f),
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
-          dirLightNear(0.1f), dirLightFar(25.f),
+          dirLightNear(1.0f), dirLightFar(25.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
-          font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0),
+          font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           wood_texture(0), morie_texture(0),
@@ -45,6 +45,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(depth_visual_shader);
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
+  glDeleteProgram(shadow_cubemap_shader);
   glDeleteTextures(1, &wood_texture);
   glDeleteTextures(1, &morie_texture);
 
@@ -248,8 +249,10 @@ bool RenderingEngine::initShader() {
   if (!depth_visual_shader) return false;
   normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
   if (!normal_shader) return false;
-  depth_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/point_depth_vs.shader", "../shaders/point_shadow/point_depth_gs.shader", "../shaders/point_shadow/point_depth_fs.shader");
+  depth_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/depth_vs.shader", "../shaders/point_shadow/depth_gs.shader", "../shaders/point_shadow/depth_fs.shader");
   if (!depth_cubemap_shader) return false;
+  shadow_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/shadow_vs.shader", "../shaders/point_shadow/shadow_fs.shader");
+  if (!shadow_cubemap_shader) return false;
   return true;
 }
 
@@ -352,14 +355,14 @@ void RenderingEngine::renderFrame() {
   glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
   glEnable(GL_DEPTH_TEST);
-  glEnable(GL_POLYGON_OFFSET_FILL);
-  glPolygonOffset(1.1,4.0);
+//  glEnable(GL_POLYGON_OFFSET_FILL);
+//  glPolygonOffset(1.1,4.0);
   // 0. drawing geometry to depthmap
-  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-  glClear(GL_DEPTH_BUFFER_BIT);
-  glUseProgram(depth_shader);
-  glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-  renderScene(depth_shader);
+//  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+//  glClear(GL_DEPTH_BUFFER_BIT);
+//  glUseProgram(depth_shader);
+//  glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+//  renderScene(depth_shader);
 
   // 1.5 drawing geometry to depthcubemap
   glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)width / (float)height, dirLightNear, dirLightFar);
@@ -380,36 +383,55 @@ void RenderingEngine::renderFrame() {
   glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), dirLightFar);
   glUniform3fv(glGetUniformLocation(depth_cubemap_shader, "lightPos"), 1, glm::value_ptr(lightPos));
   renderScene(depth_cubemap_shader);
-  glDisable(GL_POLYGON_OFFSET_FILL);
+//  glDisable(GL_POLYGON_OFFSET_FILL);
 
-  // 1. drawing geometry to screen with depthmap
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glUseProgram(shadow_shader);
+  glUseProgram(shadow_cubemap_shader);
   projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
   view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-  glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
-  glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
-  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-  glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
+  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
+  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "lightPos"), 1, glm::value_ptr(lightPos));
+  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), dirLightFar);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "diffuseTexture"), 0);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, wood_texture);
-  glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "shadowMap"), 1);
   glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, depthMap);
-  renderScene(shadow_shader);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+  renderScene(shadow_cubemap_shader);
+
+  // 1. drawing geometry to screen with depthmap
+//  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+//  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//  glUseProgram(shadow_shader);
+//  projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
+//  view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+//  glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
+//  glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
+//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+//  glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
+//  glActiveTexture(GL_TEXTURE0);
+//  glBindTexture(GL_TEXTURE_2D, wood_texture);
+//  glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
+//  glActiveTexture(GL_TEXTURE1);
+//  glBindTexture(GL_TEXTURE_2D, depthMap);
+//  renderScene(shadow_shader);
 
   // 2. debug depthmap on the same framebuffer (screen)
-  glViewport(width - 256, 0, 256, 256);
-  glUseProgram(depth_visual_shader);
-  glActiveTexture(GL_TEXTURE0);
-  glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
-  glBindTexture(GL_TEXTURE_2D, depthMap);
-  renderQuad();
-  glViewport(0, 0, width, height);
+//  glViewport(width - 256, 0, 256, 256);
+//  glUseProgram(depth_visual_shader);
+//  glActiveTexture(GL_TEXTURE0);
+//  glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
+//  glBindTexture(GL_TEXTURE_2D, depthMap);
+//  renderQuad();
+//  glViewport(0, 0, width, height);
 }
 
 void RenderingEngine::renderLight() {

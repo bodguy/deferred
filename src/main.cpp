@@ -2,7 +2,7 @@
 
 int main() {
   RenderingEngine engine;
-  engine.initWindow("LearnOpenGL", 1700, 768);
+  engine.initWindow("LearnOpenGL", 1024, 1024);
   if (!engine.initShader()) {
     std::cout << "shader init failed" << std::endl;
     return -1;
