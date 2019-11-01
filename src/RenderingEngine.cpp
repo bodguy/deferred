@@ -10,14 +10,15 @@ RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
         : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 1.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
-          projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
           lightPos(-2.0f, 4.0f, -1.0f),
+          projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
+          dirLightNear(0.1f), dirLightFar(10.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
-          wood_texture(0),
+          wood_texture(0), morie_texture(0),
           depthCubemapFBO(0), depthCubemap(0),
           depthMapFBO(0), depthMap(0) {
   instance = this;
@@ -44,6 +45,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteTextures(1, &wood_texture);
+  glDeleteTextures(1, &morie_texture);
 
   for (auto &i : mCharMap) {
     glDeleteTextures(1, &i.second.TextureID);
@@ -143,7 +145,7 @@ bool RenderingEngine::initFramebuffer() {
   // make depth framebuffer
   glGenTextures(1, &depthMap);
   glBindTexture(GL_TEXTURE_2D, depthMap);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -162,7 +164,7 @@ bool RenderingEngine::initFramebuffer() {
   glGenTextures(1, &depthCubemap);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
   for (int i = 0; i < 6; ++i) {
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
   }
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -246,12 +248,16 @@ bool RenderingEngine::initShader() {
   if (!depth_visual_shader) return false;
   normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
   if (!normal_shader) return false;
+  depth_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/point_depth_vs.shader", "../shaders/point_shadow/point_depth_gs.shader", "../shaders/point_shadow/point_depth_fs.shader");
+  if (!depth_cubemap_shader) return false;
   return true;
 }
 
 bool RenderingEngine::initTexture() {
   wood_texture = loadTexture("../res/wood.png");
   if (!wood_texture) return false;
+  morie_texture = loadTexture("../res/morie.jpg");
+  if (!morie_texture) return false;
   return true;
 }
 
@@ -266,14 +272,16 @@ int RenderingEngine::render() {
 
     renderFrame();
     renderLight();
-    text("light pos: (" + std::to_string(lightPos.x) + ", " + std::to_string(lightPos.y) + ", " +
+    text("dir light near: " + std::to_string(dirLightNear) + ", far: " + std::to_string(dirLightFar),
+            glm::vec2(5.f, 155.f), glm::vec3(1.f, 1.f, 0.f));
+    text("dir light direction: (" + std::to_string(lightPos.x) + ", " + std::to_string(lightPos.y) + ", " +
          std::to_string(lightPos.z) + ")", glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera front: (" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
          std::to_string(cameraFront.z) + ")", glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera pos: (" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
          std::to_string(cameraPos.z) + ")", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
     text("PCF + Shadow acne (Moire) + Peter panning", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
-    text("Shadow mapping Tutorial", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
+    text("Shadow mapping (Directional, point light) Tutorial", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
     text("Learn OpenGL!", glm::vec2(5.f, 5.f), glm::vec3(1.f, 1.f, 0.f));
 
     glfwSwapBuffers(mWindow);
@@ -310,6 +318,27 @@ void RenderingEngine::renderScene(unsigned int shader) {
   model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays(GL_TRIANGLES, 0, 36);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, morie_texture);
+  // cube1
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(1.92f, 0.f, 5.35f));
+  model = glm::scale(model, glm::vec3(0.5f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  // cube2
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(-4.0f, 0.0f, 2.0));
+  model = glm::scale(model, glm::vec3(0.5f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  // cube3
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 8.0));
+  model = glm::scale(model, glm::vec3(0.5f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 void RenderingEngine::renderQuad() {
@@ -318,17 +347,20 @@ void RenderingEngine::renderQuad() {
 }
 
 void RenderingEngine::renderFrame() {
-  glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.f, 10.f);
+  glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, dirLightNear, dirLightFar);
   glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
   glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
   glEnable(GL_DEPTH_TEST);
+//  glEnable(GL_POLYGON_OFFSET_FILL);
+//  glPolygonOffset(1.1,4.0);
   // 0. drawing geometry to depthmap
   glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
   glClear(GL_DEPTH_BUFFER_BIT);
   glUseProgram(depth_shader);
   glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
   renderScene(depth_shader);
+//  glDisable(GL_POLYGON_OFFSET_FILL);
 
   // 1. drawing geometry to screen with depthmap
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -471,6 +503,10 @@ void RenderingEngine::keyboardCallback() {
     lightPos += glm::vec3(1.f, 0.f, 0.f) * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS)
     lightPos -= glm::vec3(1.f, 0.f, 0.f) * velocity;
+  if (glfwGetKey(mWindow, GLFW_KEY_3) == GLFW_PRESS)
+    dirLightFar += 0.2f;
+  if (glfwGetKey(mWindow, GLFW_KEY_4) == GLFW_PRESS)
+    dirLightFar -= 0.2f;
 }
 
 void RenderingEngine::updateDeltaTime() {

@@ -172,7 +172,7 @@ unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& g
   }
 
   // geometry shader
-  unsigned int geometryShader = glCreateShader(GL_FRAGMENT_SHADER);
+  unsigned int geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
   const char* geometryShaderSource = geometrySource.c_str();
   glShaderSource(geometryShader, 1, &geometryShaderSource, NULL);
   glCompileShader(geometryShader);

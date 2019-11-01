@@ -55,6 +55,7 @@ private:
   glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
   glm::vec3 lightPos;
   glm::mat4 projection, view;
+  float dirLightNear, dirLightFar;
   float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int font_shader, depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader;
@@ -63,7 +64,7 @@ private:
   unsigned int quadVAO, quadVBO;
   unsigned int planeVAO, planeVBO;
   int width, height;
-  unsigned int wood_texture;
+  unsigned int wood_texture, morie_texture;
   unsigned int depthCubemapFBO, depthCubemap;
   unsigned int depthMapFBO, depthMap;
   std::map<char, Character> mCharMap;
