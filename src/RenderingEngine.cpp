@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <ft2build.h>
+#include <vector>
 #include FT_FREETYPE_H
 #include "util.h"
 
@@ -78,7 +79,6 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   });
   glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
   glfwPollEvents();
-  glfwSetCursorPos(mWindow, width/2, height/2);
 
   glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK) {
@@ -360,6 +360,26 @@ void RenderingEngine::renderFrame() {
   glUseProgram(depth_shader);
   glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
   renderScene(depth_shader);
+
+  // 1.5 drawing geometry to depthcubemap
+  glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)width / (float)height, dirLightNear, dirLightFar);
+  std::vector<glm::mat4> shadowTransforms;
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)));
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)));
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+  shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+  glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  glUseProgram(depth_cubemap_shader);
+  for (int i = 0; i < 6; ++i) {
+    std::string metrics = "shadowMatrices[" + std::to_string(i) + "]";
+    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, metrics.c_str()), 1, GL_FALSE, glm::value_ptr(shadowTransforms[i]));
+  }
+  glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), dirLightFar);
+  glUniform3fv(glGetUniformLocation(depth_cubemap_shader, "lightPos"), 1, glm::value_ptr(lightPos));
+  renderScene(depth_cubemap_shader);
   glDisable(GL_POLYGON_OFFSET_FILL);
 
   // 1. drawing geometry to screen with depthmap
