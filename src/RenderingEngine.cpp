@@ -12,16 +12,16 @@ RenderingEngine *RenderingEngine::instance = nullptr;
 RenderingEngine::RenderingEngine()
         : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 1.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
-          lightPos(-2.0f, 4.0f, -1.0f),
+          lightPos(1.0f, 0.f, 0.0f),
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
-          dirLightNear(1.0f), dirLightFar(25.f),
+          near_plane(0.1f), far_plane(25.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           wood_texture(0), morie_texture(0),
           depthCubemapFBO(0), depthCubemap(0),
-          depthMapFBO(0), depthMap(0) {
+          depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), shadows(true), shadowKeyPress(false), bias(0.15) {
   instance = this;
   mCharMap.clear();
 }
@@ -165,7 +165,7 @@ bool RenderingEngine::initFramebuffer() {
   glGenTextures(1, &depthCubemap);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
   for (int i = 0; i < 6; ++i) {
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
   }
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -177,6 +177,7 @@ bool RenderingEngine::initFramebuffer() {
   glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
   glDrawBuffer(GL_NONE);
   glReadBuffer(GL_NONE);
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   return true;
@@ -275,17 +276,19 @@ int RenderingEngine::render() {
 
     renderFrame();
     renderLight();
-    text("dir light near: " + std::to_string(dirLightNear) + ", far: " + std::to_string(dirLightFar),
+    text("near: " + std::to_string(near_plane) + ", far: " + std::to_string(far_plane),
             glm::vec2(5.f, 155.f), glm::vec3(1.f, 1.f, 0.f));
-    text("dir light direction: (" + std::to_string(lightPos.x) + ", " + std::to_string(lightPos.y) + ", " +
-         std::to_string(lightPos.z) + ")", glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
-    text("camera front: (" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
-         std::to_string(cameraFront.z) + ")", glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
-    text("camera pos: (" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
-         std::to_string(cameraPos.z) + ")", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
-    text("PCF + Shadow acne (Moire) + Peter panning", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
-    text("Shadow mapping (Directional, point light) Tutorial", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
-    text("Learn OpenGL!", glm::vec2(5.f, 5.f), glm::vec3(1.f, 1.f, 0.f));
+    text("light position: [" + std::to_string(lightPos.x) + ", " + std::to_string(lightPos.y) + ", " +
+         std::to_string(lightPos.z) + "] (KEY: 1 +z, 2 -z, 3 +y, 4 -y)", glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
+    text("camera front: [" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
+         std::to_string(cameraFront.z) + "]", glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
+    text("camera pos: [" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
+         std::to_string(cameraPos.z) + "]", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
+    text("shadow bias: " + std::to_string(bias) + " (KEY: O -, P +)", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
+    std::string use_pcf_str = usePcf ? "true" : "false";
+    text("use pcf? " + use_pcf_str + " (KEY: TAB toggle)", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
+    std::string use_shadows_str = shadows ? "true" : "false";
+    text("use shadow? " + use_shadows_str + " (KEY: SPACE toggle)", glm::vec2(5.f, 5.f), glm::vec3(1.f, 1.f, 0.f));
 
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
@@ -350,22 +353,7 @@ void RenderingEngine::renderQuad() {
 }
 
 void RenderingEngine::renderFrame() {
-  glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, dirLightNear, dirLightFar);
-  glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-  glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-
-  glEnable(GL_DEPTH_TEST);
-//  glEnable(GL_POLYGON_OFFSET_FILL);
-//  glPolygonOffset(1.1,4.0);
-  // 0. drawing geometry to depthmap
-//  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-//  glClear(GL_DEPTH_BUFFER_BIT);
-//  glUseProgram(depth_shader);
-//  glUniformMatrix4fv(glGetUniformLocation(depth_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-//  renderScene(depth_shader);
-
-  // 1.5 drawing geometry to depthcubemap
-  glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)width / (float)height, dirLightNear, dirLightFar);
+  glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)1024 / (float)1024, near_plane, far_plane);
   std::vector<glm::mat4> shadowTransforms;
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
@@ -373,18 +361,21 @@ void RenderingEngine::renderFrame() {
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)));
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+  // 1.5 drawing geometry to depthcubemap
+  glEnable(GL_DEPTH_TEST);
+  glViewport(0, 0, 1024, 1024);
   glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
   glClear(GL_DEPTH_BUFFER_BIT);
   glUseProgram(depth_cubemap_shader);
   for (int i = 0; i < 6; ++i) {
     std::string metrics = "shadowMatrices[" + std::to_string(i) + "]";
-    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, metrics.c_str()), 1, GL_FALSE, glm::value_ptr(shadowTransforms[i]));
+    glUniformMatrix4fv(glGetUniformLocation(depth_cubemap_shader, metrics.c_str()), 1, GL_FALSE, glm::value_ptr(shadowTransforms[i]));
   }
-  glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), dirLightFar);
+  glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), far_plane);
   glUniform3fv(glGetUniformLocation(depth_cubemap_shader, "lightPos"), 1, glm::value_ptr(lightPos));
   renderScene(depth_cubemap_shader);
-//  glDisable(GL_POLYGON_OFFSET_FILL);
 
+  glViewport(0, 0, width, height);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -395,43 +386,17 @@ void RenderingEngine::renderFrame() {
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
   glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
   glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "lightPos"), 1, glm::value_ptr(lightPos));
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), dirLightFar);
+  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), far_plane);
+  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "bias"), bias);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "use_pcf"), usePcf);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "shadows"), shadows);
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "diffuseTexture"), 0);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, wood_texture);
-  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "shadowMap"), 1);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "depthMap"), 1);
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
   renderScene(shadow_cubemap_shader);
-
-  // 1. drawing geometry to screen with depthmap
-//  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-//  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//  glUseProgram(shadow_shader);
-//  projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
-//  view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-//  glUniform3fv(glGetUniformLocation(shadow_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
-//  glUniform3fv(glGetUniformLocation(shadow_shader, "lightPos"), 1, glm::value_ptr(lightPos));
-//  glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-//  glUniform1i(glGetUniformLocation(shadow_shader, "diffuseTexture"), 0);
-//  glActiveTexture(GL_TEXTURE0);
-//  glBindTexture(GL_TEXTURE_2D, wood_texture);
-//  glUniform1i(glGetUniformLocation(shadow_shader, "shadowMap"), 1);
-//  glActiveTexture(GL_TEXTURE1);
-//  glBindTexture(GL_TEXTURE_2D, depthMap);
-//  renderScene(shadow_shader);
-
-  // 2. debug depthmap on the same framebuffer (screen)
-//  glViewport(width - 256, 0, 256, 256);
-//  glUseProgram(depth_visual_shader);
-//  glActiveTexture(GL_TEXTURE0);
-//  glUniform1i(glGetUniformLocation(depth_visual_shader, "depthMap"), 0);
-//  glBindTexture(GL_TEXTURE_2D, depthMap);
-//  renderQuad();
-//  glViewport(0, 0, width, height);
 }
 
 void RenderingEngine::renderLight() {
@@ -542,13 +507,33 @@ void RenderingEngine::keyboardCallback() {
     cameraPos -= cameraUp * velocity;
 
   if (glfwGetKey(mWindow, GLFW_KEY_1) == GLFW_PRESS)
-    lightPos += glm::vec3(1.f, 0.f, 0.f) * velocity;
+    lightPos += glm::vec3(0.f, 0.f, 1.f) * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS)
-    lightPos -= glm::vec3(1.f, 0.f, 0.f) * velocity;
+    lightPos -= glm::vec3(0.f, 0.f, 1.f) * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_3) == GLFW_PRESS)
-    dirLightFar += 0.2f;
+    lightPos += glm::vec3(0.f, 1.f, 0.f) * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_4) == GLFW_PRESS)
-    dirLightFar -= 0.2f;
+    lightPos -= glm::vec3(0.f, 1.f, 0.f) * velocity;
+  if (glfwGetKey(mWindow, GLFW_KEY_P) == GLFW_PRESS)
+    bias += 0.01;
+  if (glfwGetKey(mWindow, GLFW_KEY_O) == GLFW_PRESS)
+    bias -= 0.01;
+
+  if (glfwGetKey(mWindow, GLFW_KEY_TAB) == GLFW_PRESS && !usePcfKeyPress) {
+    usePcf = !usePcf;
+    usePcfKeyPress = true;
+  }
+  if (glfwGetKey(mWindow, GLFW_KEY_TAB) == GLFW_RELEASE) {
+    usePcfKeyPress = false;
+  }
+
+  if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS && !shadowKeyPress) {
+    shadows = !shadows;
+    shadowKeyPress = true;
+  }
+  if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_RELEASE) {
+    shadowKeyPress = false;
+  }
 }
 
 void RenderingEngine::updateDeltaTime() {
