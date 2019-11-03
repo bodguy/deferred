@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <map>
@@ -41,6 +42,8 @@ public:
   void renderLight();
   void text(std::string text, glm::vec2 pos, glm::vec3 color);
 
+  const static glm::vec3 up, down, left, right, forward, backward, one, zero;
+
 private:
   void mouseCallback(double xpos, double ypos);
   void keyboardCallback();
@@ -52,21 +55,19 @@ private:
 
   GLFWwindow *mWindow;
   glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
-  glm::vec3 lightPos;
   glm::mat4 projection, view;
+  std::vector<glm::vec3> pointLightOriginalPos;
+  std::vector<glm::vec3> pointLightColors;
+  std::vector<glm::vec3> points;
   float near_plane, far_plane;
   float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int font_shader, depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
-  unsigned int fontVAO, fontVBO;
-  unsigned int cubeVAO, cubeVBO;
-  unsigned int quadVAO, quadVBO;
-  unsigned int planeVAO, planeVBO;
+  unsigned int fontVAO, fontVBO, cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
   int width, height;
-  unsigned int wood_texture, morie_texture;
-  unsigned int depthCubemapFBO, depthCubemap;
-  unsigned int depthMapFBO, depthMap;
-  bool usePcf, usePcfKeyPress, shadows, shadowKeyPress;
+  unsigned int ice_texture, metal_texture;
+  unsigned int depthCubeMapFBO, depthCubeMap, depthMapFBO, depthMap;
+  bool usePcf, usePcfKeyPress, useShadow, shadowKeyPress;
   float bias;
   float shadowMapWidth, shadowMapHeight;
   std::map<char, Character> mCharMap;

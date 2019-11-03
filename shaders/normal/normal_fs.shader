@@ -3,6 +3,8 @@
 out vec4 FragColor;
 in vec2 TexCoords;
 
+uniform vec4 LightColor;
+
 void main() {
-  FragColor = vec4(1.0);
+  FragColor = LightColor;
 }
