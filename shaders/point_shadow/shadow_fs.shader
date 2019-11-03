@@ -78,7 +78,7 @@ float ShadowCalc(vec3 fragPos, int idx) {
 
     if (use_pcf) {
         int samples = 25;
-        float radius = 1.0 / 500.0;
+        float radius = 0.002;
         radius *= clamp(length(viewPos - fragPos), 0.2, 6);
         for (int i = 0; i < samples; ++i) {
             float closestDepth = texture(depthMap[idx], fragToLight + offsets[i] * radius).r;

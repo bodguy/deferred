@@ -2,7 +2,7 @@
 
 int main() {
   RenderingEngine engine;
-  engine.initWindow("LearnOpenGL", 1280, 720);
+  engine.initWindow("Three point light shadow mapping example", 1280, 720);
   if (!engine.initShader()) {
     std::cout << "shader init failed" << std::endl;
     return -1;
