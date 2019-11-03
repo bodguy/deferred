@@ -27,24 +27,18 @@ RenderingEngine::RenderingEngine()
           font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
-          ice_texture(0), metal_texture(0),
+          diffuse_texture(0), diffuse_texture2(0),
           depthCubeMapFBO(0), depthCubeMap(0),
-          depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), useShadow(false), shadowKeyPress(false), bias(0.01),
+          depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), useShadow(true), shadowKeyPress(false),
           shadowMapWidth(1024.f), shadowMapHeight(1024.f) {
   instance = this;
   mCharMap.clear();
-  points.clear();
-  pointLightOriginalPos = {
-          glm::vec3( 0.7f,  0.2f,  2.0f),
-          glm::vec3( 2.3f, 2.f, -4.0f),
-          glm::vec3(-4.0f,  2.0f, -8.0f),
-          glm::vec3( 0.0f,  0.0f, -3.0f)
-  };
-  pointLightColors = {
-          glm::vec3(1.0f, 0.6f, 0.0f),
-          glm::vec3(1.0f, 0.0f, 0.0f),
-          glm::vec3(1.0f, 1.0, 0.0),
-          glm::vec3(0.2f, 0.2f, 1.0f)
+  movablePointLights.clear();
+  lights = {
+    PointLight(glm::vec3( 0.7f,  0.2f,  2.0f), glm::vec3(1.0f, 0.6f, 0.0f)),
+    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(1.0f, 0.0f, 0.0f)),
+    PointLight(glm::vec3(-4.0f,  2.0f, -8.0f), glm::vec3(1.0f, 1.0, 0.0)),
+    PointLight(glm::vec3( 0.0f,  0.0f, -3.0f),  glm::vec3(0.2f, 0.2f, 1.0f)),
   };
 }
 
@@ -68,8 +62,8 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteProgram(shadow_cubemap_shader);
-  glDeleteTextures(1, &ice_texture);
-  glDeleteTextures(1, &metal_texture);
+  glDeleteTextures(1, &diffuse_texture);
+  glDeleteTextures(1, &diffuse_texture2);
 
   for (auto &i : mCharMap) {
     glDeleteTextures(1, &i.second.TextureID);
@@ -280,10 +274,10 @@ bool RenderingEngine::initShader() {
 }
 
 bool RenderingEngine::initTexture() {
-  ice_texture = loadTexture("../res/ice.png");
-  if (!ice_texture) return false;
-  metal_texture = loadTexture("../res/metal.png");
-  if (!metal_texture) return false;
+  diffuse_texture = loadTexture("../res/wood.png");
+  if (!diffuse_texture) return false;
+  diffuse_texture2 = loadTexture("../res/wall.png");
+  if (!diffuse_texture2) return false;
   return true;
 }
 
@@ -296,23 +290,22 @@ int RenderingEngine::render() {
     updateCamera();
     keyboardCallback();
 
-    for (int i =0; i < pointLightOriginalPos.size(); i++) {
-      points.push_back(glm::vec3(
-              pointLightOriginalPos[i].x + cos(lastFrame * (0.5f + i)) * 5.f,
-              pointLightOriginalPos[i].y,
-              pointLightOriginalPos[i].z + sin(lastFrame * (0.5f + i)) * 5.f
+    for (int i = 0; i < lights.size(); i++) {
+      movablePointLights.push_back(glm::vec3(
+        lights[i].position.x + cos(lastFrame * (0.5f * i)) * 5.f,
+        lights[i].position.y,
+        lights[i].position.z + sin(lastFrame * (0.5f * i)) * 5.f
       ));
     }
     renderFrame();
     renderLight();
-    points.clear();
+    movablePointLights.clear();
     text("near: " + std::to_string(near_plane) + ", far: " + std::to_string(far_plane),
-            glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
+            glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera front: [" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
-         std::to_string(cameraFront.z) + "]", glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
+         std::to_string(cameraFront.z) + "]", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
     text("camera pos: [" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
-         std::to_string(cameraPos.z) + "]", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
-    text("shadow bias: " + std::to_string(bias) + " (KEY: O -, P +)", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
+         std::to_string(cameraPos.z) + "]", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
     std::string use_pcf_str = usePcf ? "true" : "false";
     text("use pcf? " + use_pcf_str + " (KEY: TAB toggle)", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
     std::string use_shadows_str = useShadow ? "true" : "false";
@@ -354,7 +347,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDrawArrays(GL_TRIANGLES, 0, 36);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, metal_texture);
+  glBindTexture(GL_TEXTURE_2D, diffuse_texture2);
   // cube1
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(1.92f, 0.f, 5.35f));
@@ -378,16 +371,16 @@ void RenderingEngine::renderScene(unsigned int shader) {
 void RenderingEngine::renderFrame() {
   glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), shadowMapWidth / shadowMapHeight, near_plane, far_plane);
   std::vector<glm::mat4> shadowTransforms;
-  for (int i = 0; i < points.size(); i++) {
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::right, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::left, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::up, RenderingEngine::backward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::down, RenderingEngine::forward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::backward, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(points[i], points[i] + RenderingEngine::forward, RenderingEngine::down));
+  for (int i = 0; i < movablePointLights.size(); i++) {
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::right, RenderingEngine::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::left, RenderingEngine::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::up, RenderingEngine::backward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::down, RenderingEngine::forward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::backward, RenderingEngine::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::forward, RenderingEngine::down));
   }
 
-  // 1. drawing geometry to depthcubemap
+  // 1. drawing geometry to depth cube map
   glEnable(GL_DEPTH_TEST);
   glViewport(0, 0, shadowMapWidth, shadowMapHeight);
   glBindFramebuffer(GL_FRAMEBUFFER, depthCubeMapFBO);
@@ -397,9 +390,7 @@ void RenderingEngine::renderFrame() {
     glUniformMatrix4fv(glGetUniformLocation(depth_cubemap_shader, ("shadowMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(shadowTransforms[i]));
   }
   glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), far_plane);
-  for (int i = 0;i < points.size(); i++) {
-    glUniform3fv(glGetUniformLocation(depth_cubemap_shader, ("lightPos" + std::to_string(i)).c_str()), 1, glm::value_ptr(points[i]));
-  }
+  glUniform3fv(glGetUniformLocation(depth_cubemap_shader, "lightPos"), 1, glm::value_ptr(movablePointLights[0]));
   renderScene(depth_cubemap_shader);
 
   // 2. drawing geometry
@@ -414,51 +405,30 @@ void RenderingEngine::renderFrame() {
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
   glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), far_plane);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "bias"), bias);
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "use_pcf"), usePcf);
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "useShadow"), useShadow);
-  // Point light 1
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].position"), points[0].x, points[0].y, points[0].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].ambient"), pointLightColors[0].x * 0.1,  pointLightColors[0].y * 0.1,  pointLightColors[0].z * 0.1);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].diffuse"), pointLightColors[0].x,  pointLightColors[0].y,  pointLightColors[0].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].specular"), pointLightColors[0].x,  pointLightColors[0].y,  pointLightColors[0].z);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].constant"), 1.0f);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].linear"), 0.09);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[0].quadratic"), 0.032);
-  // Point light 2
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].position"), points[1].x, points[1].y, points[1].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].ambient"), pointLightColors[1].x * 0.1,  pointLightColors[1].y * 0.1,  pointLightColors[1].z * 0.1);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].diffuse"), pointLightColors[1].x,  pointLightColors[1].y,  pointLightColors[1].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].specular"), pointLightColors[1].x,  pointLightColors[1].y,  pointLightColors[1].z);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].constant"), 1.0f);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].linear"), 0.09);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[1].quadratic"), 0.032);
-  // Point light 3
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].position"), points[2].x, points[2].y, points[2].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].ambient"), pointLightColors[2].x * 0.1,  pointLightColors[2].y * 0.1,  pointLightColors[2].z * 0.1);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].diffuse"), pointLightColors[2].x,  pointLightColors[2].y,  pointLightColors[2].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].specular") ,pointLightColors[2].x,  pointLightColors[2].y,  pointLightColors[2].z);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].constant"), 1.0f);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].linear"), 0.09);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[2].quadratic"), 0.032);
-  // Point light 4
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].position"), points[3].x, points[3].y, points[3].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].ambient"), pointLightColors[3].x * 0.1,  pointLightColors[3].y * 0.1,  pointLightColors[3].z * 0.1);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].diffuse"), pointLightColors[3].x,  pointLightColors[3].y,  pointLightColors[3].z);
-  glUniform3f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].specular"), pointLightColors[3].x,  pointLightColors[3].y,  pointLightColors[3].z);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].constant"), 1.0f);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].linear"), 0.09);
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "pointLights[3].quadratic"), 0.032);
-
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 32.0f);
+  for (int i = 0; i < lights.size(); i++) {
+    glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].position").c_str()), 1, glm::value_ptr(movablePointLights[i]));
+    glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].ambient").c_str()), 1, glm::value_ptr(lights[i].ambient));
+    glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].diffuse").c_str()), 1, glm::value_ptr(lights[i].diffuse));
+    glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].specular").c_str()), 1, glm::value_ptr(lights[i].specular));
+    glUniform1f(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].constant").c_str()), lights[i].constant);
+    glUniform1f(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].linear").c_str()), lights[i].linear);
+    glUniform1f(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].quadratic").c_str()), lights[i].quadratic);
+    glUniform1f(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].bias").c_str()), lights[i].shadow_bias);
+  }
+  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 128.0f);
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "material.diffuse"), 0);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, ice_texture);
-  for (int i = 0;i < points.size(); i++) {
-    glUniform1i(glGetUniformLocation(shadow_cubemap_shader, ("depthMap[" + std::to_string(i) + "]").c_str()), 1);
-    glActiveTexture(GL_TEXTURE1 + i);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
-  }
+  glBindTexture(GL_TEXTURE_2D, diffuse_texture);
+  glUniform1i(glGetUniformLocation(shadow_cubemap_shader, ("depthMap[" + std::to_string(0) + "]").c_str()), 1);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
+//  for (int i = 1; i <= points.size(); i++) {
+//    glUniform1i(glGetUniformLocation(shadow_cubemap_shader, ("depthMap[" + std::to_string(i) + "]").c_str()), i);
+//    glActiveTexture(GL_TEXTURE0 + i);
+//    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
+//  }
   renderScene(shadow_cubemap_shader);
 }
 
@@ -469,11 +439,11 @@ void RenderingEngine::renderLight() {
   glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
   glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
   glm::mat4 model = glm::mat4(1.0f);
-  for (int i =0; i < points.size(); i++) {
-    model = glm::translate(model, points[i]);
+  for (int i =0; i < movablePointLights.size(); i++) {
+    model = glm::translate(model, movablePointLights[i]);
     model = glm::scale(model, glm::vec3(0.2f));
     glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniform4fv(glGetUniformLocation(normal_shader, "LightColor"), 1, glm::value_ptr(pointLightColors[i]));
+    glUniform4fv(glGetUniformLocation(normal_shader, "LightColor"), 1, glm::value_ptr(lights[i].ambient));
     glDrawArrays(GL_TRIANGLES, 0, 36);
     model = glm::mat4(1.0f);
   }
@@ -572,10 +542,6 @@ void RenderingEngine::keyboardCallback() {
     cameraPos += cameraUp * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
     cameraPos -= cameraUp * velocity;
-  if (glfwGetKey(mWindow, GLFW_KEY_P) == GLFW_PRESS)
-    bias += 0.01;
-  if (glfwGetKey(mWindow, GLFW_KEY_O) == GLFW_PRESS)
-    bias -= 0.01;
 
   if (glfwGetKey(mWindow, GLFW_KEY_TAB) == GLFW_PRESS && !usePcfKeyPress) {
     usePcf = !usePcf;

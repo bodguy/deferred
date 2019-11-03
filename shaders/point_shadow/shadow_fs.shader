@@ -9,6 +9,7 @@ struct PointLight {
     float constant;
     float linear;
     float quadratic;
+    float bias;
 
     vec3 ambient;
     vec3 diffuse;
@@ -21,17 +22,17 @@ struct Material {
 };
 
 vec3 offsets[25] = vec3[] (
-vec3( 0,  0,  0), vec3( 0,  1,  1), vec3( 0, -1,  1),
-vec3( 0, -1, -1), vec3( 0,  1, -1), vec3( 0,  0, -1),
-vec3( 0,  0,  1), vec3( 0, -1,  0), vec3( 0,  1,  0),
+    vec3( 0,  0,  0), vec3( 0,  1,  1), vec3( 0, -1,  1),
+    vec3( 0, -1, -1), vec3( 0,  1, -1), vec3( 0,  0, -1),
+    vec3( 0,  0,  1), vec3( 0, -1,  0), vec3( 0,  1,  0),
 
-vec3( 1,  0,  0)                  , vec3( 1, -1,  1),
-vec3( 1, -1, -1), vec3( 1,  1, -1), vec3( 1,  0, -1),
-vec3( 1,  0,  1), vec3( 1, -1,  0), vec3( 1,  1,  0),
+    vec3( 1,  0,  0)                  , vec3( 1, -1,  1),
+    vec3( 1, -1, -1), vec3( 1,  1, -1), vec3( 1,  0, -1),
+    vec3( 1,  0,  1), vec3( 1, -1,  0), vec3( 1,  1,  0),
 
-vec3( -1, 0,  0), vec3(-1,  1,  1), vec3(-1, -1,  1),
-vec3(-1,  1, -1), vec3(-1,  0, -1),
-vec3(-1,  0,  1), vec3(-1, -1,  0), vec3(-1,  1,  0)
+    vec3( -1, 0,  0), vec3(-1,  1,  1), vec3(-1, -1,  1),
+    vec3(-1,  1, -1), vec3(-1,  0, -1),
+    vec3(-1,  0,  1), vec3(-1, -1,  0), vec3(-1,  1,  0)
 );
 
 in VS_OUT {
@@ -49,7 +50,6 @@ uniform Material material;
 uniform float far_plane;
 uniform bool useShadow;
 uniform bool use_pcf;
-uniform float bias;
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float shadow) {
     vec3 lightDir = normalize(light.position - fragPos);
@@ -71,8 +71,8 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, f
     return (ambient + (1.0 - shadow) * (diffuse + specular));
 }
 
-float ShadowCalc(PointLight light, vec3 fragPos, samplerCube shadowMap) {
-    vec3 fragToLight = fragPos - light.position;
+float ShadowCalc(vec3 fragPos, int i) {
+    vec3 fragToLight = fragPos - pointLights[i].position;
     float currentDepth = length(fragToLight);
     float shadow = 0.0;
 
@@ -81,17 +81,17 @@ float ShadowCalc(PointLight light, vec3 fragPos, samplerCube shadowMap) {
         float radius = 1.0 / 500.0;
         radius *= clamp(length(viewPos - fragPos), 0.2, 6);
         for (int i = 0; i < samples; ++i) {
-            float closestDepth = texture(shadowMap, fragToLight + offsets[i] * radius).r;
+            float closestDepth = texture(depthMap[0], fragToLight + offsets[i] * radius).r;
             closestDepth *= far_plane;
-            if(currentDepth - bias > closestDepth) {
+            if(currentDepth - pointLights[i].bias > closestDepth) {
                 shadow += 1.0;
             }
         }
         shadow /= float(samples);
     } else {
-        float closestDepth = texture(shadowMap, fragToLight).r;
+        float closestDepth = texture(depthMap[0], fragToLight).r;
         closestDepth *= far_plane;
-        shadow = currentDepth - bias  > closestDepth ? 1.0 : 0.0;
+        shadow = currentDepth - pointLights[i].bias  > closestDepth ? 1.0 : 0.0;
     }
 
     return shadow;
@@ -105,7 +105,7 @@ void main() {
     float shadow = 0.0;
     for(int i = 0; i < NR_POINT_LIGHTS; i++) {
         if (useShadow) {
-            shadow = ShadowCalc(pointLights[i], fs_in.FragPos, depthMap[i]);
+            shadow = ShadowCalc(fs_in.FragPos, i);
         }
         result += CalcPointLight(pointLights[i], normal, fs_in.FragPos, viewDir, shadow);
     }

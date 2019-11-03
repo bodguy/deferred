@@ -23,6 +23,20 @@ struct Character {
   }
 };
 
+struct PointLight {
+  PointLight(glm::vec3 p, glm::vec3 a)
+    : position(p), constant(1.0f), linear(0.09f), quadratic(0.032f), shadow_bias(0.01), ambient(a * 0.3f), diffuse(a), specular(a) {}
+
+  glm::vec3 position;
+  float constant;
+  float linear;
+  float quadratic;
+  float shadow_bias;
+  glm::vec3 ambient;
+  glm::vec3 diffuse;
+  glm::vec3 specular;
+};
+
 struct GLFWwindow;
 
 class RenderingEngine {
@@ -56,21 +70,19 @@ private:
   GLFWwindow *mWindow;
   glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
   glm::mat4 projection, view;
-  std::vector<glm::vec3> pointLightOriginalPos;
-  std::vector<glm::vec3> pointLightColors;
-  std::vector<glm::vec3> points;
+  std::vector<glm::vec3> movablePointLights;
   float near_plane, far_plane;
   float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int font_shader, depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
   unsigned int fontVAO, fontVBO, cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
   int width, height;
-  unsigned int ice_texture, metal_texture;
+  unsigned int diffuse_texture, diffuse_texture2;
   unsigned int depthCubeMapFBO, depthCubeMap, depthMapFBO, depthMap;
   bool usePcf, usePcfKeyPress, useShadow, shadowKeyPress;
-  float bias;
   float shadowMapWidth, shadowMapHeight;
   std::map<char, Character> mCharMap;
+  std::vector<PointLight> lights;
 };
 
 
