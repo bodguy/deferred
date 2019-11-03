@@ -21,7 +21,8 @@ RenderingEngine::RenderingEngine()
           width(0), height(0),
           wood_texture(0), morie_texture(0),
           depthCubemapFBO(0), depthCubemap(0),
-          depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), shadows(true), shadowKeyPress(false), bias(0.15) {
+          depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), shadows(true), shadowKeyPress(false), bias(0.01),
+          shadowMapWidth(1024.f), shadowMapHeight(1024.f) {
   instance = this;
   mCharMap.clear();
 }
@@ -165,7 +166,7 @@ bool RenderingEngine::initFramebuffer() {
   glGenTextures(1, &depthCubemap);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
   for (int i = 0; i < 6; ++i) {
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
   }
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -347,13 +348,8 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-void RenderingEngine::renderQuad() {
-  glBindVertexArray(quadVAO);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
-}
-
 void RenderingEngine::renderFrame() {
-  glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)1024 / (float)1024, near_plane, far_plane);
+  glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), shadowMapWidth / shadowMapHeight, near_plane, far_plane);
   std::vector<glm::mat4> shadowTransforms;
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
@@ -363,7 +359,7 @@ void RenderingEngine::renderFrame() {
   shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
   // 1.5 drawing geometry to depthcubemap
   glEnable(GL_DEPTH_TEST);
-  glViewport(0, 0, 1024, 1024);
+  glViewport(0, 0, shadowMapWidth, shadowMapHeight);
   glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
   glClear(GL_DEPTH_BUFFER_BIT);
   glUseProgram(depth_cubemap_shader);

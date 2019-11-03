@@ -37,7 +37,6 @@ public:
   bool initTexture();
   int render();
   void renderScene(unsigned int shader);
-  void renderQuad();
   void renderFrame();
   void renderLight();
   void text(std::string text, glm::vec2 pos, glm::vec3 color);
@@ -69,6 +68,7 @@ private:
   unsigned int depthMapFBO, depthMap;
   bool usePcf, usePcfKeyPress, shadows, shadowKeyPress;
   float bias;
+  float shadowMapWidth, shadowMapHeight;
   std::map<char, Character> mCharMap;
 };
 
