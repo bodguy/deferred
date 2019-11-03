@@ -25,7 +25,7 @@ struct Character {
 
 struct PointLight {
   PointLight(glm::vec3 p, glm::vec3 a)
-    : position(p), constant(1.0f), linear(0.09f), quadratic(0.032f), shadow_bias(0.01), ambient(a * 0.3f), diffuse(a), specular(a) {}
+    : position(p), constant(1.0f), linear(0.09f), quadratic(0.032f), shadow_bias(0.01), ambient(a * 0.8f), diffuse(a), specular(a) {}
 
   glm::vec3 position;
   float constant;
@@ -78,7 +78,7 @@ private:
   unsigned int fontVAO, fontVBO, cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
   int width, height;
   unsigned int diffuse_texture, diffuse_texture2;
-  unsigned int depthCubeMapFBO, depthCubeMap, depthMapFBO, depthMap;
+  unsigned int depthCubeMapFBO[4], depthCubeMap[4], depthMapFBO, depthMap;
   bool usePcf, usePcfKeyPress, useShadow, shadowKeyPress;
   float shadowMapWidth, shadowMapHeight;
   std::map<char, Character> mCharMap;

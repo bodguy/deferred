@@ -1,7 +1,7 @@
 #version 330 core
 out vec4 FragColor;
 
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 3
 
 struct PointLight {
     vec3 position;
@@ -71,8 +71,8 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, f
     return (ambient + (1.0 - shadow) * (diffuse + specular));
 }
 
-float ShadowCalc(vec3 fragPos, int i) {
-    vec3 fragToLight = fragPos - pointLights[i].position;
+float ShadowCalc(vec3 fragPos, int idx) {
+    vec3 fragToLight = fragPos - pointLights[idx].position;
     float currentDepth = length(fragToLight);
     float shadow = 0.0;
 
@@ -81,17 +81,17 @@ float ShadowCalc(vec3 fragPos, int i) {
         float radius = 1.0 / 500.0;
         radius *= clamp(length(viewPos - fragPos), 0.2, 6);
         for (int i = 0; i < samples; ++i) {
-            float closestDepth = texture(depthMap[0], fragToLight + offsets[i] * radius).r;
+            float closestDepth = texture(depthMap[idx], fragToLight + offsets[i] * radius).r;
             closestDepth *= far_plane;
-            if(currentDepth - pointLights[i].bias > closestDepth) {
+            if(currentDepth - pointLights[idx].bias > closestDepth) {
                 shadow += 1.0;
             }
         }
         shadow /= float(samples);
     } else {
-        float closestDepth = texture(depthMap[0], fragToLight).r;
+        float closestDepth = texture(depthMap[idx], fragToLight).r;
         closestDepth *= far_plane;
-        shadow = currentDepth - pointLights[i].bias  > closestDepth ? 1.0 : 0.0;
+        shadow = currentDepth - pointLights[idx].bias  > closestDepth ? 1.0 : 0.0;
     }
 
     return shadow;
@@ -105,7 +105,7 @@ void main() {
     float shadow = 0.0;
     for(int i = 0; i < NR_POINT_LIGHTS; i++) {
         if (useShadow) {
-            shadow = ShadowCalc(fs_in.FragPos, i);
+            shadow += ShadowCalc(fs_in.FragPos, i);
         }
         result += CalcPointLight(pointLights[i], normal, fs_in.FragPos, viewDir, shadow);
     }

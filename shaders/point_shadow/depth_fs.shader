@@ -1,7 +1,5 @@
 #version 330 core
 
-#define NR_POINT_LIGHTS 4
-
 in vec4 FragPos;
 
 uniform vec3 lightPos;
