@@ -227,10 +227,18 @@ int RenderingEngine::render() {
     renderLight();
     movablePointLights.clear();
 
+    fontRenderer->SetScale(0.27);
+    fontRenderer->SetColor(glm::vec3(0.25f, 0.25f , 0.25f));
+    fontRenderer->Printf(glm::vec2(5.f, 708.f), "triangle count: %d", triangleCount);
+    fontRenderer->Printf(glm::vec2(5.f, 695.f), "vertex count: %d", vertexCount);
+    fontRenderer->Printf(glm::vec2(5.f, 682.f), "draw call: %d", drawCallCount);
+    fontRenderer->SetScale(0.5);
+    fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
     fontRenderer->Printf(glm::vec2(5.f, 55.f), "total lights: %ld", lights.size());
     fontRenderer->Printf(glm::vec2(5.f, 30.f), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
     fontRenderer->Printf(glm::vec2(5.f, 5.f), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
 
+    resetProfile();
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
   }
@@ -244,27 +252,27 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glm::mat4 model = glm::mat4(1.0f);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glBindVertexArray(planeVAO);
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 6);
   // first cube
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glBindVertexArray(cubeVAO);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // another cube2
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, diffuse_texture2);
@@ -273,19 +281,19 @@ void RenderingEngine::renderScene(unsigned int shader) {
   model = glm::translate(model, glm::vec3(1.92f, 0.f, 5.35f));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // cube2
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(-4.0f, 0.0f, 2.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // cube3
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 8.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 }
 
 void RenderingEngine::renderFrame() {
@@ -360,7 +368,7 @@ void RenderingEngine::renderLight() {
     model = glm::scale(model, glm::vec3(0.05f));
     glUniformMatrix4fv(glGetUniformLocation(normal_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniform4fv(glGetUniformLocation(normal_shader, "LightColor"), 1, glm::value_ptr(lights[i].color));
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDrawArrays_profile(GL_TRIANGLES, 0, 36);
     model = glm::mat4(1.0f);
   }
 }
@@ -408,16 +416,6 @@ void RenderingEngine::keyboardCallback() {
     cameraPos += cameraUp * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
     cameraPos -= cameraUp * velocity;
-  if (glfwGetKey(mWindow, GLFW_KEY_1) == GLFW_PRESS) {
-    for (int i = 0; i < lights.size(); i++) {
-      lights[i].intensity -= 0.01f;
-    }
-  }
-  if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS) {
-    for (int i = 0; i < lights.size(); i++) {
-      lights[i].intensity += 0.01f;
-    }
-  }
 }
 
 void RenderingEngine::updateDeltaTime() {

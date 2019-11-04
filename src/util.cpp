@@ -80,6 +80,10 @@ namespace utils {
   };
 }
 
+int drawCallCount = 0;
+int vertexCount = 0;
+int triangleCount = 0;
+
 bool loadFile(const std::string& filepath, std::string& out_source) {
   FILE* fp = NULL;
   fp = fopen(filepath.c_str(), "r");
@@ -252,4 +256,25 @@ unsigned int loadTexture(char const * path) {
   }
 
   return textureID;
+}
+
+void glDrawArrays_profile(GLenum mode, GLint first, GLsizei count) {
+  glDrawArrays(mode, first, count);
+  drawCallCount++;
+  vertexCount += count;
+  switch (mode) {
+    case GL_TRIANGLES:
+      triangleCount += (count - first) / 3;
+      break;
+    case GL_TRIANGLE_FAN:
+    case GL_TRIANGLE_STRIP:
+      triangleCount += (count - 2 - first);
+      break;
+  }
+}
+
+void resetProfile() {
+  drawCallCount = 0;
+  vertexCount = 0;
+  triangleCount = 0;
 }

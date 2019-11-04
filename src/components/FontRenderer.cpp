@@ -9,7 +9,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-FontRenderer::FontRenderer() : mColor(glm::vec3(1.f)), mFontShader(0), mFontVAO(0), mFontVBO(0) {
+FontRenderer::FontRenderer() : mScale(0.5f), mColor(glm::vec3(1.f)), mFontShader(0), mFontVAO(0), mFontVBO(0) {
   mCharMap.clear();
 }
 
@@ -115,6 +115,10 @@ std::string FontRenderer::Sprintf(const char* fmt, ...) {
   return ret;
 }
 
+void FontRenderer::SetScale(float scale) {
+  mScale = scale;
+}
+
 void FontRenderer::SetColor(const glm::vec3 color) {
   mColor = color;
 }
@@ -147,11 +151,11 @@ void FontRenderer::DrawText(std::string text, glm::vec2 pos) {
   for (c = text.begin(); c != text.end(); c++) {
     Character ch = mCharMap[*c];
 
-    float xpos = pos.x + ch.Bearing.x * 0.5;
-    float ypos = pos.y - (ch.Size.y - ch.Bearing.y) * 0.5;
+    float xpos = pos.x + ch.Bearing.x * mScale;
+    float ypos = pos.y - (ch.Size.y - ch.Bearing.y) * mScale;
 
-    float w = ch.Size.x * 0.5;
-    float h = ch.Size.y * 0.5;
+    float w = ch.Size.x * mScale;
+    float h = ch.Size.y * mScale;
     // Update VBO for each character
     float vertices[6][4] = {
             {xpos,     ypos + h, 0.0, 0.0},
@@ -169,7 +173,7 @@ void FontRenderer::DrawText(std::string text, glm::vec2 pos) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-    pos.x += (ch.Advance >> 6) * 0.5; // Bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    pos.x += (ch.Advance >> 6) * mScale; // Bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
   }
   glBindVertexArray(0);
   glBindTexture(GL_TEXTURE_2D, 0);

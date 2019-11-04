@@ -24,6 +24,7 @@ public:
   void Printf(const glm::vec2& pos, const char* fmt, ...);
   std::string Sprintf(const char* fmt, ...);
 
+  void SetScale(float scale);
   void SetColor(const glm::vec3 color);
   void PrintCodepoint(const char codepoint);
   unsigned long GetGlyphSize() const { return mCharMap.size(); }
@@ -32,6 +33,7 @@ private:
   void DrawText(std::string text, glm::vec2 pos);
 
 private:
+  float mScale;
   glm::vec3 mColor;
   std::map<char, Character> mCharMap;
   unsigned int mFontShader;
