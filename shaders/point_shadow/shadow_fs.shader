@@ -5,19 +5,19 @@ out vec4 FragColor;
 
 struct PointLight {
     vec3 position;
-
-    float constant;
-    float linear;
-    float quadratic;
-    float bias;
-
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 color;
+    float attenuation;
+    float shadowBias;
+    float shadowFilterSharpen;
+    float shadowStrength;
+    float intensity;
+    bool castShadow;
+    bool castTranslucentShadow;
 };
 
 struct Material {
     sampler2D diffuse;
+    sampler2D specular;
     float shininess;
 };
 
@@ -35,6 +35,14 @@ vec3 offsets[25] = vec3[] (
     vec3(-1,  0,  1), vec3(-1, -1,  0), vec3(-1,  1,  0)
 );
 
+vec3 sampleOffsetDirections[20] = vec3[] (
+    vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1),
+    vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+    vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+    vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+);
+
 in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
@@ -48,8 +56,6 @@ uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform Material material;
 
 uniform float far_plane;
-uniform bool useShadow;
-uniform bool use_pcf;
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float shadow) {
     vec3 lightDir = normalize(light.position - fragPos);
@@ -60,30 +66,27 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, f
     float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
     // attenuation
     float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    float attenuation = 1.0 / (1.0 + light.attenuation * pow(distance, 2));
+
     // combine results
-    vec3 ambient = light.ambient * vec3(texture(material.diffuse, fs_in.TexCoords));
-    vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, fs_in.TexCoords));
-    vec3 specular = light.specular * spec;
-    ambient *= attenuation;
-    diffuse *= attenuation;
-    specular *= attenuation;
+    vec3 ambient = light.color * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
+    vec3 diffuse = light.color * diff * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
+    vec3 specular = light.color * spec * vec3(texture(material.specular, fs_in.TexCoords)) * attenuation;
     return (ambient + (1.0 - shadow) * (diffuse + specular));
 }
 
-float ShadowCalc(vec3 fragPos, int idx) {
+float CalculateShadow(vec3 fragPos, int idx) {
     vec3 fragToLight = fragPos - pointLights[idx].position;
     float currentDepth = length(fragToLight);
     float shadow = 0.0;
 
-    if (use_pcf) {
+    if (pointLights[idx].castTranslucentShadow) {
         int samples = 25;
-        float radius = 0.002;
-        radius *= clamp(length(viewPos - fragPos), 0.2, 6);
+        float radius = pointLights[idx].shadowFilterSharpen * clamp(length(viewPos - fragPos), 0.2, 6);
         for (int i = 0; i < samples; ++i) {
             float closestDepth = texture(depthMap[idx], fragToLight + offsets[i] * radius).r;
             closestDepth *= far_plane;
-            if(currentDepth - pointLights[idx].bias > closestDepth) {
+            if(currentDepth - pointLights[idx].shadowBias > closestDepth) {
                 shadow += 1.0;
             }
         }
@@ -91,7 +94,7 @@ float ShadowCalc(vec3 fragPos, int idx) {
     } else {
         float closestDepth = texture(depthMap[idx], fragToLight).r;
         closestDepth *= far_plane;
-        shadow = currentDepth - pointLights[idx].bias  > closestDepth ? 1.0 : 0.0;
+        shadow = currentDepth - pointLights[idx].shadowBias  > closestDepth ? pointLights[idx].shadowStrength : 0.0;
     }
 
     return shadow;
@@ -104,8 +107,8 @@ void main() {
     vec3 result = vec3(0.0);
     float shadow = 0.0;
     for(int i = 0; i < NR_POINT_LIGHTS; i++) {
-        if (useShadow) {
-            shadow += ShadowCalc(fs_in.FragPos, i);
+        if (pointLights[i].castShadow) {
+            shadow += CalculateShadow(fs_in.FragPos, i);
         }
         result += CalcPointLight(pointLights[i], normal, fs_in.FragPos, viewDir, shadow);
     }

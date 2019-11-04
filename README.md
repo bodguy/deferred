@@ -34,3 +34,15 @@ sudo apt-get install libx11-dev mesa-common-dev libglu1-mesa-dev libglm-dev libg
 - glew
 - glfw
 - glm
+
+
+### TODO
+
+- light constant, linear, quadratic to intensity
+- intensity replace far plane clipping constant
+- multiple dir light integration
+- spot light shadow
+- cascade shadow map
+- normal mapping
+- ssao
+- deferred rendering 

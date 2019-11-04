@@ -9,17 +9,22 @@
 #include <map>
 
 struct PointLight {
-  PointLight(glm::vec3 p, glm::vec3 a)
-    : position(p), constant(1.0f), linear(0.09f), quadratic(0.032f), shadow_bias(0.01), ambient(a * 0.8f), diffuse(a), specular(a) {}
+  PointLight(glm::vec3 p, glm::vec3 c)
+    : position(p), color(c), attenuation(0.1f),
+    shadowBias(0.01), shadowFilterSharpen(0.01), shadowStrength(1.f), nearPlane(0.1f), intensity(1.f),
+    castShadow(true), castTranslucentShadow(true), shadowMapResolution(glm::vec2(512.f, 512.f)) {}
 
   glm::vec3 position;
-  float constant;
-  float linear;
-  float quadratic;
-  float shadow_bias;
-  glm::vec3 ambient;
-  glm::vec3 diffuse;
-  glm::vec3 specular;
+  glm::vec3 color;
+  float attenuation;
+  float shadowBias;
+  float shadowFilterSharpen;
+  float shadowStrength;
+  float nearPlane;
+  float intensity;
+  bool castShadow;
+  bool castTranslucentShadow;
+  glm::vec2 shadowMapResolution;
 };
 
 struct GLFWwindow;
@@ -57,16 +62,14 @@ private:
   glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
   glm::mat4 projection, view;
   std::vector<glm::vec3> movablePointLights;
-  float near_plane, far_plane;
+  float far_plane;
   float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
   unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
   int width, height;
-  unsigned int diffuse_texture, diffuse_texture2;
+  unsigned int diffuse_texture, diffuse_texture2, normal_texture;
   unsigned int depthCubeMapFBO[4], depthCubeMap[4], depthMapFBO, depthMap;
-  bool usePcf, usePcfKeyPress, useShadow, shadowKeyPress;
-  float shadowMapWidth, shadowMapHeight;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
 };
