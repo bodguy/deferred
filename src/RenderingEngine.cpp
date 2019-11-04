@@ -1,20 +1,10 @@
 #include "RenderingEngine.h"
+#include "util.h"
+#include "components/FontRenderer.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
-#include <ft2build.h>
 #include <vector>
-#include FT_FREETYPE_H
-#include "util.h"
-
-const glm::vec3 RenderingEngine::up = glm::vec3(0.f, 1.f, 0.f);
-const glm::vec3 RenderingEngine::down = glm::vec3(0.f, -1.f, 0.f);
-const glm::vec3 RenderingEngine::left = glm::vec3(-1.f, 0.f, 0.f);
-const glm::vec3 RenderingEngine::right = glm::vec3(1.f, 0.f, 0.f);
-const glm::vec3 RenderingEngine::forward = glm::vec3(0.f, 0.f, -1.f);
-const glm::vec3 RenderingEngine::backward = glm::vec3(0.f, 0.f, 1.f);
-const glm::vec3 RenderingEngine::one = glm::vec3(1.f, 1.f, 1.f);
-const glm::vec3 RenderingEngine::zero = glm::vec3(0.f, 0.f, 0.f);
 
 RenderingEngine *RenderingEngine::instance = nullptr;
 
@@ -24,27 +14,25 @@ RenderingEngine::RenderingEngine()
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
           near_plane(0.1f), far_plane(25.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
-          font_shader(0), depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
-          fontVAO(0), fontVBO(0), cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
+          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
+          cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,},
           depthMapFBO(0), depthMap(0), usePcf(true), usePcfKeyPress(false), useShadow(true), shadowKeyPress(false),
           shadowMapWidth(512.f), shadowMapHeight(512.f) {
   instance = this;
-  mCharMap.clear();
+
   movablePointLights.clear();
   lights = {
     PointLight(glm::vec3( 0.7f,  0.2f,  2.0f), glm::vec3(1.0f, 1.f, 0.0f)),
     PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(1.0f, 0.0f, 0.0f)),
-    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.0f, 1.0, 0.0)),
-//    PointLight(glm::vec3( 0.0f,  0.0f, -3.0f),  glm::vec3(0.2f, 0.2f, 1.0f)),
+    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.0f, 1.0, 0.0))
   };
+  fontRenderer = new FontRenderer();
 }
 
 RenderingEngine::~RenderingEngine() {
-  glDeleteVertexArrays(1, &fontVAO);
-  glDeleteBuffers(1, &fontVBO);
   glDeleteVertexArrays(1, &cubeVAO);
   glDeleteBuffers(1, &cubeVBO);
   glDeleteVertexArrays(1, &quadVAO);
@@ -55,7 +43,6 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(lights.size(), depthCubeMap);
   glDeleteFramebuffers(1, &depthMapFBO);
   glDeleteTextures(1, &depthMap);
-  glDeleteProgram(font_shader);
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
   glDeleteProgram(depth_visual_shader);
@@ -64,11 +51,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(shadow_cubemap_shader);
   glDeleteTextures(1, &diffuse_texture);
   glDeleteTextures(1, &diffuse_texture2);
-
-  for (auto &i : mCharMap) {
-    glDeleteTextures(1, &i.second.TextureID);
-  }
-  mCharMap.clear();
+  delete fontRenderer;
 }
 
 bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
@@ -108,25 +91,19 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   width = w;
   height = h;
 
+  if (!fontRenderer->Init("../res/arial.ttf")) {
+    return false;
+  }
+
   return true;
 }
 
 void RenderingEngine::initVertex() {
-  glGenVertexArrays(1, &fontVAO);
-  glGenBuffers(1, &fontVBO);
-  glBindVertexArray(fontVAO);
-  glBindBuffer(GL_ARRAY_BUFFER, fontVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
-
   glGenVertexArrays(1, &planeVAO);
   glGenBuffers(1, &planeVBO);
   glBindVertexArray(planeVAO);
   glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::planeVertices), utils::planeVertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(1);
@@ -139,7 +116,7 @@ void RenderingEngine::initVertex() {
   glGenBuffers(1, &cubeVBO);
   glBindVertexArray(cubeVAO);
   glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::cubeVertices), &utils::cubeVertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
   glEnableVertexAttribArray(1);
@@ -151,7 +128,7 @@ void RenderingEngine::initVertex() {
   glGenBuffers(1, &quadVBO);
   glBindVertexArray(quadVAO);
   glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::quadVertices), &utils::quadVertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *) 0);
   glEnableVertexAttribArray(1);
@@ -201,66 +178,7 @@ bool RenderingEngine::initFramebuffer() {
   return true;
 }
 
-bool RenderingEngine::initFont(const std::string &filename) {
-  FT_Library ft;
-  if (FT_Init_FreeType(&ft)) {
-    std::cout << "Could not init FreeType Library" << std::endl;
-    return false;
-  }
-
-  FT_Face face;
-  if (FT_New_Face(ft, filename.c_str(), 0, &face)) {
-    std::cout << "Failed to load font" << std::endl;
-    return false;
-  }
-
-  // Set size to load glyphs as
-  FT_Set_Pixel_Sizes(face, 0, 48);
-
-  // Disable byte-alignment restriction
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-  // Load first 128 characters of ASCII set
-  for (GLubyte c = 0; c < 128; c++) {
-    // Load character glyph
-    if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-      std::cout << "Failed to load Glyph" << std::endl;
-      continue;
-    }
-    // Generate texture
-    GLuint font_texture;
-    glGenTextures(1, &font_texture);
-    glBindTexture(GL_TEXTURE_2D, font_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, face->glyph->bitmap.width, face->glyph->bitmap.rows, 0, GL_RED,
-                 GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
-    // Set texture options
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Now store character for later use
-    Character character = {
-            font_texture,
-            c,
-            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            face->glyph->advance.x
-    };
-//    character.printInfo();
-    mCharMap.insert(std::pair<GLchar, Character>(c, character));
-  }
-  glBindTexture(GL_TEXTURE_2D, 0);
-  FT_Done_Face(face);
-  FT_Done_FreeType(ft);
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  std::cout << "Total GlyphMap size: " << mCharMap.size() << std::endl;
-  return true;
-}
-
 bool RenderingEngine::initShader() {
-  // for rendering fonts
-  font_shader = loadShaderFromFile("../shaders/font/font_vs.shader", "../shaders/font/font_fs.shader");
-  if (!font_shader) return false;
   // for directional light shadow mapping (currently not used)
   depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
   if (!depth_shader) return false;
@@ -282,7 +200,7 @@ bool RenderingEngine::initShader() {
 bool RenderingEngine::initTexture() {
   diffuse_texture = loadTexture("../res/wood.png");
   if (!diffuse_texture) return false;
-  diffuse_texture2 = loadTexture("../res/wall.png");
+  diffuse_texture2 = loadTexture("../res/brickwall.jpg");
   if (!diffuse_texture2) return false;
   return true;
 }
@@ -307,18 +225,12 @@ int RenderingEngine::render() {
     renderLight();
     movablePointLights.clear();
 
-    text("shadow map width: " + std::to_string(shadowMapWidth) + ", height: " + std::to_string(shadowMapHeight),
-            glm::vec2(5.f, 130.f), glm::vec3(1.f, 1.f, 0.f));
-    text("near: " + std::to_string(near_plane) + ", far: " + std::to_string(far_plane),
-            glm::vec2(5.f, 105.f), glm::vec3(1.f, 1.f, 0.f));
-    text("camera front: [" + std::to_string(cameraFront.x) + ", " + std::to_string(cameraFront.y) + ", " +
-         std::to_string(cameraFront.z) + "]", glm::vec2(5.f, 80.f), glm::vec3(1.f, 1.f, 0.f));
-    text("camera pos: [" + std::to_string(cameraPos.x) + ", " + std::to_string(cameraPos.y) + ", " +
-         std::to_string(cameraPos.z) + "]", glm::vec2(5.f, 55.f), glm::vec3(1.f, 1.f, 0.f));
-    std::string use_pcf_str = usePcf ? "true" : "false";
-    text("use pcf? " + use_pcf_str + " (KEY: TAB toggle)", glm::vec2(5.f, 30.f), glm::vec3(1.f, 1.f, 0.f));
-    std::string use_shadows_str = useShadow ? "true" : "false";
-    text("use shadow? " + use_shadows_str + " (KEY: SPACE toggle)", glm::vec2(5.f, 5.f), glm::vec3(1.f, 1.f, 0.f));
+    fontRenderer->Printf(glm::vec2(5.f, 130.f), "shadow map width: %.1f, height: %.1f", shadowMapWidth, shadowMapHeight);
+    fontRenderer->Printf(glm::vec2(5.f, 105.f), "near: %.2f, far: %.2f", near_plane, far_plane);
+    fontRenderer->Printf(glm::vec2(5.f, 80.f), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
+    fontRenderer->Printf(glm::vec2(5.f, 55.f), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
+    fontRenderer->Printf(glm::vec2(5.f, 30.f), "use pcf? %s (KEY: TAB toggle)", usePcf ? "true" : "false");
+    fontRenderer->Printf(glm::vec2(5.f, 5.f), "use shadow? %s (KEY: SPACE toggle)", useShadow ? "true" : "false");
 
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
@@ -381,12 +293,12 @@ void RenderingEngine::renderFrame() {
   glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), shadowMapWidth / shadowMapHeight, near_plane, far_plane);
   std::vector<glm::mat4> shadowTransforms;
   for (int i = 0; i < lights.size(); i++) {
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::right, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::left, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::up, RenderingEngine::backward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::down, RenderingEngine::forward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::backward, RenderingEngine::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + RenderingEngine::forward, RenderingEngine::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::right, utils::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::left, utils::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::up, utils::backward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::down, utils::forward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::backward, utils::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::forward, utils::down));
   }
 
   // 1. drawing geometry to depth cube map
@@ -453,56 +365,6 @@ void RenderingEngine::renderLight() {
     glDrawArrays(GL_TRIANGLES, 0, 36);
     model = glm::mat4(1.0f);
   }
-}
-
-void RenderingEngine::text(std::string text, glm::vec2 pos, glm::vec3 color) {
-  glDisable(GL_DEPTH_TEST);
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glUseProgram(font_shader);
-  glUniform3f(glGetUniformLocation(font_shader, "textColor"), color.x, color.y, color.z);
-  glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(width), 0.0f, static_cast<GLfloat>(height));
-  glUniformMatrix4fv(glGetUniformLocation(font_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-  glActiveTexture(GL_TEXTURE0);
-  glBindVertexArray(fontVAO);
-
-  // Iterate through all characters
-  std::string::const_iterator c;
-  for (c = text.begin(); c != text.end(); c++) {
-    Character ch = mCharMap[*c];
-
-    GLfloat xpos = pos.x + ch.Bearing.x * 0.5;
-    GLfloat ypos = pos.y - (ch.Size.y - ch.Bearing.y) * 0.5;
-
-    GLfloat w = ch.Size.x * 0.5;
-    GLfloat h = ch.Size.y * 0.5;
-    // Update VBO for each character
-    GLfloat vertices[6][4] = {
-            {xpos,     ypos + h, 0.0, 0.0},
-            {xpos,     ypos,     0.0, 1.0},
-            {xpos + w, ypos,     1.0, 1.0},
-
-            {xpos,     ypos + h, 0.0, 0.0},
-            {xpos + w, ypos,     1.0, 1.0},
-            {xpos + w, ypos + h, 1.0, 0.0}
-    };
-    // Render glyph texture over quad
-    glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-    // Update content of VBO memory
-    glBindBuffer(GL_ARRAY_BUFFER, fontVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices),
-                    vertices); // Be sure to use glBufferSubData and not glBufferData
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    // Render quad
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-    pos.x += (ch.Advance >> 6) *
-             0.5; // Bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
-  }
-  glBindVertexArray(0);
-  glBindTexture(GL_TEXTURE_2D, 0);
-  glDisable(GL_BLEND);
 }
 
 void RenderingEngine::mouseCallback(double xpos, double ypos) {

@@ -7,10 +7,6 @@ int main() {
     std::cout << "shader init failed" << std::endl;
     return -1;
   }
-  if (!engine.initFont("../res/arial.ttf")) {
-    std::cout << "font init failed" << std::endl;
-    return -1;
-  }
   if (!engine.initTexture()) {
     std::cout << "texture init failed" << std::endl;
     return -1;
