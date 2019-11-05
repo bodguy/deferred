@@ -19,13 +19,13 @@ RenderingEngine::RenderingEngine()
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,},
-          depthMapFBO(0), depthMap(0) {
+          depthMapFBO(0), depthMap(0), gpuTimeProfileQuery(0), timeElapsed(0) {
   instance = this;
   movablePointLights.clear();
   lights = {
     PointLight(glm::vec3( 0.7f,  0.2f,  2.0f), glm::vec3(0.8f, 0.8f, 0.8f)),
     PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(0.8f, 0.8f, 0.8f)),
-    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(0.8f, 0.8f, 0.8f))
+    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(0.8f, 0.8f, 0.8f)),
   };
   fontRenderer = new FontRenderer();
 }
@@ -50,6 +50,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(1, &diffuse_texture);
   glDeleteTextures(1, &diffuse_texture2);
   glDeleteTextures(1, &normal_texture);
+  glDeleteQueries(1, &gpuTimeProfileQuery);
   delete fontRenderer;
   fontRenderer = nullptr;
 }
@@ -94,6 +95,8 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   if (!fontRenderer->Init("../res/arial.ttf")) {
     return false;
   }
+
+  glGenQueries(1, &gpuTimeProfileQuery);
 
   return true;
 }
@@ -223,8 +226,13 @@ int RenderingEngine::render() {
         lights[i].position.z + sin(lastFrame * (0.5f * (i + 1))) * 5.f
       ));
     }
+
+    glBeginQuery(GL_TIME_ELAPSED, gpuTimeProfileQuery);
     renderFrame();
     renderLight();
+    glEndQuery(GL_TIME_ELAPSED);
+    glGetQueryObjectuiv(gpuTimeProfileQuery, GL_QUERY_RESULT, &timeElapsed);
+
     movablePointLights.clear();
 
     fontRenderer->SetScale(0.27);
@@ -232,6 +240,7 @@ int RenderingEngine::render() {
     fontRenderer->Printf(glm::vec2(5.f, 708.f), "triangle count: %d", triangleCount);
     fontRenderer->Printf(glm::vec2(5.f, 695.f), "vertex count: %d", vertexCount);
     fontRenderer->Printf(glm::vec2(5.f, 682.f), "draw call: %d", drawCallCount);
+    fontRenderer->Printf(glm::vec2(5.f, 669.f), "GPU time: %d ns", timeElapsed);
     fontRenderer->SetScale(0.5);
     fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
     fontRenderer->Printf(glm::vec2(5.f, 55.f), "total lights: %ld", lights.size());

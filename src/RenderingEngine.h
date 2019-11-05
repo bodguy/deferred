@@ -70,6 +70,8 @@ private:
   int width, height;
   unsigned int diffuse_texture, diffuse_texture2, normal_texture;
   unsigned int depthCubeMapFBO[4], depthCubeMap[4], depthMapFBO, depthMap;
+  unsigned int gpuTimeProfileQuery;
+  unsigned int timeElapsed;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
 };
