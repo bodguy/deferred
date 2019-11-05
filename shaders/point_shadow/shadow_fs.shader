@@ -35,14 +35,6 @@ vec3 offsets[25] = vec3[] (
     vec3(-1,  0,  1), vec3(-1, -1,  0), vec3(-1,  1,  0)
 );
 
-vec3 sampleOffsetDirections[20] = vec3[] (
-    vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1),
-    vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
-    vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
-    vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
-    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
-);
-
 in VS_OUT {
     vec3 FragPos;
     vec3 Normal;

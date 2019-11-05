@@ -18,8 +18,9 @@ RenderingEngine::RenderingEngine()
           cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
-          depthCubeMapFBO{0,}, depthCubeMap{0,},
-          depthMapFBO(0), depthMap(0), gpuTimeProfileQuery(0), timeElapsed(0) {
+          depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
+          hdrFBO(0), hdrColorTexture(0),
+          gpuTimeProfileQuery(0), timeElapsed(0) {
   instance = this;
   movablePointLights.clear();
   lights = {
@@ -41,6 +42,9 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(lights.size(), depthCubeMap);
   glDeleteFramebuffers(1, &depthMapFBO);
   glDeleteTextures(1, &depthMap);
+  glDeleteFramebuffers(1, &hdrFBO);
+  glDeleteTextures(1, &hdrColorTexture);
+
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
   glDeleteProgram(depth_visual_shader);
@@ -177,6 +181,22 @@ bool RenderingEngine::initFramebuffer() {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
+
+  // make hdr framebuffer
+  glGenTextures(1, &hdrColorTexture);
+  glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glGenFramebuffers(1, &hdrFBO);
+  glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+//  unsigned int rboDepth;
+//  glGenRenderbuffers(1, &rboDepth);
+//  glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+//  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorTexture, 0);
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   return true;
 }
