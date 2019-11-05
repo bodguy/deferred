@@ -237,15 +237,15 @@ int RenderingEngine::render() {
 
     fontRenderer->SetScale(0.27);
     fontRenderer->SetColor(glm::vec3(0.25f, 0.25f , 0.25f));
-    fontRenderer->Printf(glm::vec2(5.f, 708.f), "triangle count: %d", triangleCount);
-    fontRenderer->Printf(glm::vec2(5.f, 695.f), "vertex count: %d", vertexCount);
-    fontRenderer->Printf(glm::vec2(5.f, 682.f), "draw call: %d", drawCallCount);
-    fontRenderer->Printf(glm::vec2(5.f, 669.f), "GPU time: %d ns", timeElapsed);
-    fontRenderer->SetScale(0.5);
+    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 1), "triangle count: %d", triangleCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 2), "vertex count: %d", vertexCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 3), "draw call: %d", drawCallCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 4), "GPU time: %d ns", timeElapsed);
+    fontRenderer->SetScale(0.4);
     fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
-    fontRenderer->Printf(glm::vec2(5.f, 55.f), "total lights: %ld", lights.size());
-    fontRenderer->Printf(glm::vec2(5.f, 30.f), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
-    fontRenderer->Printf(glm::vec2(5.f, 5.f), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
 
     resetProfile();
     glfwSwapBuffers(mWindow);
@@ -257,11 +257,14 @@ int RenderingEngine::render() {
 }
 
 void RenderingEngine::renderScene(unsigned int shader) {
+  glDisable(GL_CULL_FACE);
   // floor
   glm::mat4 model = glm::mat4(1.0f);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glBindVertexArray(planeVAO);
   glDrawArrays_profile(GL_TRIANGLES, 0, 6);
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
   // first cube
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
