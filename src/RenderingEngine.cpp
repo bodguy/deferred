@@ -20,7 +20,7 @@ RenderingEngine::RenderingEngine()
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
           hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useHdr(true), exposure(1.f) {
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useHdr(false), exposure(1.f) {
   instance = this;
   movablePointLights.clear();
   lights = {
@@ -195,6 +195,7 @@ bool RenderingEngine::initFramebuffer() {
   glGenRenderbuffers(1, &hdrRboDepth);
   glBindRenderbuffer(GL_RENDERBUFFER, hdrRboDepth);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdrRboDepth);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorTexture, 0);
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -224,9 +225,9 @@ bool RenderingEngine::initShader() {
 }
 
 bool RenderingEngine::initTexture() {
-  diffuse_texture = loadTexture("../res/wood.png", true);
+  diffuse_texture = loadTexture("../res/wood.png", false);
   if (!diffuse_texture) return false;
-  diffuse_texture2 = loadTexture("../res/brickwall.jpg", true);
+  diffuse_texture2 = loadTexture("../res/brickwall.jpg", false);
   if (!diffuse_texture2) return false;
   normal_texture = loadTexture("../res/brickwall_normal.jpg", false);
   if (!normal_texture) return false;
@@ -300,7 +301,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-0.36f, 2.12f, -4.66f));
+  model = glm::translate(model, glm::vec3(-0.36f, 2.46f, -4.66f));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -316,7 +317,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // cube2
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(6.41f, 2.32f, -3.52f));
+  model = glm::translate(model, glm::vec3(6.41f, 2.46f, -3.52f));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));

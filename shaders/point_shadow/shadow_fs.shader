@@ -64,7 +64,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, f
     vec3 ambient = light.color * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
     vec3 diffuse = light.color * diff * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
     vec3 specular = light.color * spec * vec3(texture(material.specular, fs_in.TexCoords)) * attenuation;
-    return (ambient + (1.0 - shadow) * (diffuse + specular));
+    return (ambient + (1.0 - shadow) * diffuse + specular);
 }
 
 float CalculateShadow(vec3 fragPos, int idx) {
@@ -86,7 +86,7 @@ float CalculateShadow(vec3 fragPos, int idx) {
     } else {
         float closestDepth = texture(depthMap[idx], fragToLight).r;
         closestDepth *= far_plane;
-        shadow = currentDepth - pointLights[idx].shadowBias  > closestDepth ? clamp(pointLights[idx].shadowStrength, 0, 1) : 0.0;
+        shadow = currentDepth - pointLights[idx].shadowBias > closestDepth ? clamp(pointLights[idx].shadowStrength, 0, 1) : 0.0;
     }
 
     return shadow;
