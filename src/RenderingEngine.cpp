@@ -14,19 +14,19 @@ RenderingEngine::RenderingEngine()
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
           far_plane(25.f),
           deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
-          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
+          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0), hdr_shader(0),
           cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
-          hdrFBO(0), hdrColorTexture(0),
-          gpuTimeProfileQuery(0), timeElapsed(0) {
+          hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useHdr(true), exposure(1.f) {
   instance = this;
   movablePointLights.clear();
   lights = {
-    PointLight(glm::vec3( 0.7f,  0.2f,  2.0f), glm::vec3(0.8f, 0.8f, 0.8f)),
-    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(0.8f, 0.8f, 0.8f)),
-    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(0.8f, 0.8f, 0.8f)),
+    PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f)),
+//    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(0.f, 1.f, 0.f)),
+//    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(0.f, 0.f, 1.f)),
   };
   fontRenderer = new FontRenderer();
 }
@@ -44,6 +44,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(1, &depthMap);
   glDeleteFramebuffers(1, &hdrFBO);
   glDeleteTextures(1, &hdrColorTexture);
+  glDeleteRenderbuffers(1, &hdrRboDepth);
 
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
@@ -51,6 +52,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteProgram(shadow_cubemap_shader);
+  glDeleteProgram(hdr_shader);
   glDeleteTextures(1, &diffuse_texture);
   glDeleteTextures(1, &diffuse_texture2);
   glDeleteTextures(1, &normal_texture);
@@ -137,9 +139,9 @@ void RenderingEngine::initVertex() {
   glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(utils::quadVertices), &utils::quadVertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *) 0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
   glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *) (2 * sizeof(float)));
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
 }
 
 bool RenderingEngine::initFramebuffer() {
@@ -190,10 +192,9 @@ bool RenderingEngine::initFramebuffer() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glGenFramebuffers(1, &hdrFBO);
   glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-//  unsigned int rboDepth;
-//  glGenRenderbuffers(1, &rboDepth);
-//  glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-//  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+  glGenRenderbuffers(1, &hdrRboDepth);
+  glBindRenderbuffer(GL_RENDERBUFFER, hdrRboDepth);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorTexture, 0);
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -217,15 +218,17 @@ bool RenderingEngine::initShader() {
   if (!depth_cubemap_shader) return false;
   shadow_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/shadow_vs.shader", "../shaders/point_shadow/shadow_fs.shader");
   if (!shadow_cubemap_shader) return false;
+  hdr_shader = loadShaderFromFile("../shaders/hdr/hdr_vs.shader", "../shaders/hdr/hdr_fs.shader");
+  if (!hdr_shader) return false;
   return true;
 }
 
 bool RenderingEngine::initTexture() {
-  diffuse_texture = loadTexture("../res/wood.png");
+  diffuse_texture = loadTexture("../res/wood.png", true);
   if (!diffuse_texture) return false;
-  diffuse_texture2 = loadTexture("../res/brickwall.jpg");
+  diffuse_texture2 = loadTexture("../res/brickwall.jpg", true);
   if (!diffuse_texture2) return false;
-  normal_texture = loadTexture("../res/brickwall_normal.jpg");
+  normal_texture = loadTexture("../res/brickwall_normal.jpg", false);
   if (!normal_texture) return false;
   return true;
 }
@@ -249,7 +252,6 @@ int RenderingEngine::render() {
 
     glBeginQuery(GL_TIME_ELAPSED, gpuTimeProfileQuery);
     renderFrame();
-    renderLight();
     glEndQuery(GL_TIME_ELAPSED);
     glGetQueryObjectuiv(gpuTimeProfileQuery, GL_QUERY_RESULT, &timeElapsed);
 
@@ -263,6 +265,8 @@ int RenderingEngine::render() {
     fontRenderer->Printf(glm::vec2(5.f, height - 12 * 4), "GPU time: %d ns", timeElapsed);
     fontRenderer->SetScale(0.4);
     fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 4), "use hdr: %s", useHdr ? "true" : "false");
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 3), "exposure: %.5f", exposure);
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
@@ -280,6 +284,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDisable(GL_CULL_FACE);
   // floor
   glm::mat4 model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(1.84f, 2.12f, -4.52f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glBindVertexArray(planeVAO);
   glDrawArrays_profile(GL_TRIANGLES, 0, 6);
@@ -287,22 +292,16 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glCullFace(GL_BACK);
   // first cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
+  model = glm::translate(model, glm::vec3(1.92f, 2.12f, -6.51f));
   model = glm::scale(model, glm::vec3(0.5f));
   glBindVertexArray(cubeVAO);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
+  model = glm::translate(model, glm::vec3(-0.36f, 2.12f, -4.66f));
+  model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.5f));
-  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
-  // another cube2
-  model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
-  model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-  model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 
@@ -310,19 +309,14 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glBindTexture(GL_TEXTURE_2D, diffuse_texture2);
   // cube1
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(1.92f, 0.f, 5.35f));
+  model = glm::translate(model, glm::vec3(1.92f, 2.12f, -2.35f));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // cube2
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-4.0f, 0.0f, 2.0));
-  model = glm::scale(model, glm::vec3(0.5f));
-  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
-  // cube3
-  model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 8.0));
+  model = glm::translate(model, glm::vec3(6.41f, 2.32f, -3.52f));
+  model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
@@ -340,8 +334,8 @@ void RenderingEngine::renderFrame() {
     shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::forward, utils::down));
   }
 
-  // 1. drawing geometry to depth cube map
   glEnable(GL_DEPTH_TEST);
+  // 1. drawing geometry to depth cube map
   for (int lc = 0; lc < lights.size(); lc++) {
     glViewport(0, 0, lights[lc].shadowMapResolution.x, lights[lc].shadowMapResolution.y);
     glBindFramebuffer(GL_FRAMEBUFFER, depthCubeMapFBO[lc]);
@@ -355,9 +349,9 @@ void RenderingEngine::renderFrame() {
     renderScene(depth_cubemap_shader);
   }
 
-  // 2. drawing geometry
+  // 2. drawing to the hdr floating point framebuffer
   glViewport(0, 0, width, height);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(shadow_cubemap_shader);
@@ -386,6 +380,17 @@ void RenderingEngine::renderFrame() {
   }
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 128.0f);
   renderScene(shadow_cubemap_shader);
+  renderLight();
+
+  // 3. drawing to quad
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glUseProgram(hdr_shader);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
+  glUniform1i(glGetUniformLocation(hdr_shader, "hdr"), useHdr);
+  glUniform1f(glGetUniformLocation(hdr_shader, "exposure"), exposure);
+  renderQuad();
 }
 
 void RenderingEngine::renderLight() {
@@ -403,6 +408,12 @@ void RenderingEngine::renderLight() {
     glDrawArrays_profile(GL_TRIANGLES, 0, 36);
     model = glm::mat4(1.0f);
   }
+}
+
+void RenderingEngine::renderQuad() {
+  glBindVertexArray(quadVAO);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  glBindVertexArray(0);
 }
 
 void RenderingEngine::mouseCallback(double xpos, double ypos) {
@@ -448,6 +459,24 @@ void RenderingEngine::keyboardCallback() {
     cameraPos += cameraUp * velocity;
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
     cameraPos -= cameraUp * velocity;
+
+  if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS && !hdrKeyPressed) {
+    useHdr = !useHdr;
+    hdrKeyPressed = true;
+  }
+  if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_RELEASE) {
+    hdrKeyPressed = false;
+  }
+
+  if (glfwGetKey(mWindow, GLFW_KEY_1) == GLFW_PRESS) {
+    if (exposure > 0.0f)
+      exposure -= 0.001f;
+    else
+      exposure = 0.0f;
+  }
+  else if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS) {
+    exposure += 0.001f;
+  }
 }
 
 void RenderingEngine::updateDeltaTime() {
