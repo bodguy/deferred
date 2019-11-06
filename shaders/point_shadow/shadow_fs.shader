@@ -1,7 +1,7 @@
 #version 330 core
 out vec4 FragColor;
 
-#define NR_POINT_LIGHTS 1
+#define NR_POINT_LIGHTS 3
 
 struct PointLight {
     vec3 position;

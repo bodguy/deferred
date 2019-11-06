@@ -25,8 +25,8 @@ RenderingEngine::RenderingEngine()
   movablePointLights.clear();
   lights = {
     PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f)),
-//    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(0.f, 1.f, 0.f)),
-//    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(0.f, 0.f, 1.f)),
+    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(1.f, 1.f, 1.f)),
+    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.f, 1.f, 1.f)),
   };
   fontRenderer = new FontRenderer();
 }
@@ -281,6 +281,7 @@ int RenderingEngine::render() {
 }
 
 void RenderingEngine::renderScene(unsigned int shader) {
+  glEnable(GL_DEPTH_TEST);
   glDisable(GL_CULL_FACE);
   // floor
   glm::mat4 model = glm::mat4(1.0f);
@@ -411,6 +412,7 @@ void RenderingEngine::renderLight() {
 }
 
 void RenderingEngine::renderQuad() {
+  glDisable(GL_DEPTH_TEST);
   glBindVertexArray(quadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   glBindVertexArray(0);
