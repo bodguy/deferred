@@ -2,6 +2,7 @@
 #include "util.h"
 #include "components/FontRenderer.h"
 #include "components/Transform.h"
+#include "components/Camera.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -10,18 +11,14 @@
 RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
-        : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 2.3f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
-          cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
-          projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
-          far_plane(25.f),
-          deltaTime(0.0f), lastFrame(0.0f), Yaw(-90.0f), Pitch(0.0f), MouseSensitivity(0.1f), firstMouse(true),
-          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0), hdr_shader(0),
-          cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
-          width(0), height(0),
-          diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
-          depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
-          hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useHdr(false), exposure(1.f) {
+  : mWindow(nullptr), deltaTime(0.0f), lastFrame(0.0f), MouseSensitivity(0.1f), firstMouse(true),
+    depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0), hdr_shader(0),
+    cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
+    width(0), height(0),
+    diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
+    depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
+    hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
+    gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false) {
   instance = this;
   movablePointLights.clear();
   lights = {
@@ -30,6 +27,8 @@ RenderingEngine::RenderingEngine()
     PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.f, 1.f, 1.f)),
   };
   fontRenderer = new FontRenderer();
+  camera = new Camera(glm::vec3(0.0f, 2.3f, 8.0f));
+  camera->Init();
 }
 
 RenderingEngine::~RenderingEngine() {
@@ -60,6 +59,8 @@ RenderingEngine::~RenderingEngine() {
   glDeleteQueries(1, &gpuTimeProfileQuery);
   delete fontRenderer;
   fontRenderer = nullptr;
+  delete camera;
+  camera = nullptr;
 }
 
 bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
@@ -267,11 +268,9 @@ int RenderingEngine::render() {
     fontRenderer->Printf(glm::vec2(5.f, height - 12 * 4), "GPU time: %d ns", timeElapsed);
     fontRenderer->SetScale(0.4);
     fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 4), "use hdr: %s", useHdr ? "true" : "false");
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 3), "exposure: %.5f", exposure);
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "camera front: [%.2f, %.2f, %.2f]", cameraFront.x, cameraFront.y, cameraFront.z);
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "camera pos: [%.2f, %.2f, %.2f]", cameraPos.x, cameraPos.y, cameraPos.z);
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "use hdr: %s", camera->IsHdr() ? "true" : "false");
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "exposure: %.5f", camera->GetHdrExposure());
+    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "total lights: %ld", lights.size());
 
     resetProfile();
     glfwSwapBuffers(mWindow);
@@ -328,7 +327,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
 void RenderingEngine::renderFrame() {
   std::vector<glm::mat4> shadowTransforms;
   for (int i = 0; i < lights.size(); i++) {
-    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), lights[i].shadowMapResolution.x / lights[i].shadowMapResolution.y, lights[i].nearPlane, far_plane);
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), lights[i].shadowMapResolution.x / lights[i].shadowMapResolution.y, lights[i].nearPlane, 25.f);
     shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Right, Transform::Down));
     shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Left, Transform::Down));
     shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Up, Transform::Backward));
@@ -347,7 +346,7 @@ void RenderingEngine::renderFrame() {
     for (int i = 0; i < 6; ++i) {
       glUniformMatrix4fv(glGetUniformLocation(depth_cubemap_shader, ("shadowMatrices[" + std::to_string(i) + "]").c_str()), 1, GL_FALSE, glm::value_ptr(shadowTransforms[i + lc * 6]));
     }
-    glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), far_plane);
+    glUniform1f(glGetUniformLocation(depth_cubemap_shader, "far_plane"), 25.f);
     glUniform3fv(glGetUniformLocation(depth_cubemap_shader, "lightPos"), 1, glm::value_ptr(movablePointLights[lc]));
     renderScene(depth_cubemap_shader);
   }
@@ -361,12 +360,10 @@ void RenderingEngine::renderFrame() {
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "material.diffuse"), 0);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, diffuse_texture);
-  projection = glm::perspective(glm::radians(45.0f), (float) width / (float) height, 0.1f, 100.0f);
-  view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(cameraPos));
-  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), far_plane);
+  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
+  glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
+  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(camera->GetPosition()));
+  glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), camera->GetFarClipPlane());
   for (int i = 0; i < lights.size(); i++) {
     glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].position").c_str()), 1, glm::value_ptr(movablePointLights[i]));
     glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].color").c_str()), 1, glm::value_ptr(lights[i].color));
@@ -391,8 +388,8 @@ void RenderingEngine::renderFrame() {
   glUseProgram(hdr_shader);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
-  glUniform1i(glGetUniformLocation(hdr_shader, "hdr"), useHdr);
-  glUniform1f(glGetUniformLocation(hdr_shader, "exposure"), exposure);
+  glUniform1i(glGetUniformLocation(hdr_shader, "hdr"), camera->IsHdr());
+  glUniform1f(glGetUniformLocation(hdr_shader, "exposure"), camera->GetHdrExposure());
   renderQuad();
 }
 

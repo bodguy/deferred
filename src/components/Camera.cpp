@@ -2,6 +2,15 @@
 #include "../RenderingEngine.h"
 #include <GL/glew.h>
 
+Camera::Camera()
+  : transform(), pixelRect(), normalizedRect(), hdr(false), orthographic(false), fieldOfView(glm::radians(45.f)), backgroundColor(0.f),
+   nearClipPlane(0.1f), farClipPlane(100.f), aspectRatio(0.f), exposure(1.f), targetTexture(0), useOcclusionCulling(false),
+   worldToCameraMatrix(), cameraToWorldMatrix(), projectionMatrix(),
+   hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0), hdrShader(0) {
+  SetPixelRect(Rect<unsigned int>(0, 0, RenderingEngine::GetInstance()->GetWidth(), RenderingEngine::GetInstance()->GetHeight()));
+  SetAspectRatio(pixelRect.w, pixelRect.h);
+}
+
 Camera::Camera(const glm::vec3& pos)
   : transform(pos), pixelRect(), normalizedRect(), hdr(false), orthographic(false), fieldOfView(glm::radians(45.f)), backgroundColor(0.f),
     nearClipPlane(0.1f), farClipPlane(25.f), aspectRatio(0.f), exposure(1.f), targetTexture(0), useOcclusionCulling(false),
@@ -54,6 +63,10 @@ bool Camera::Init() {
   return true;
 }
 
+glm::vec3 Camera::GetPosition() const {
+  return transform.GetPosition();
+}
+
 float Camera::GetFieldOfView() const {
   return fieldOfView;
 }
@@ -76,6 +89,14 @@ float Camera::GetAspectRatio() const {
 
 float Camera::GetHdrExposure() const {
   return exposure;
+}
+
+bool Camera::IsHdr() const {
+  return hdr;
+}
+
+bool Camera::IsOrthographic() const {
+  return orthographic;
 }
 
 Rect<unsigned int> Camera::GetPixelRect() const {

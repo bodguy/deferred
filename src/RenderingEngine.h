@@ -29,6 +29,7 @@ struct PointLight {
 
 struct GLFWwindow;
 class FontRenderer;
+class Camera;
 class RenderingEngine {
 public:
   RenderingEngine();
@@ -60,11 +61,8 @@ private:
   static RenderingEngine *instance;
 
   GLFWwindow *mWindow;
-  glm::vec3 cameraPos, cameraFront, cameraUp, cameraRight;
-  glm::mat4 projection, view;
   std::vector<glm::vec3> movablePointLights;
-  float far_plane;
-  float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
+  float deltaTime, lastFrame, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader, hdr_shader;
   unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
@@ -74,10 +72,10 @@ private:
   unsigned int hdrFBO, hdrColorTexture, hdrRboDepth;
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
-  bool hdrKeyPressed, useHdr;
-  float exposure;
+  bool hdrKeyPressed;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
+  Camera* camera;
 };
 
 

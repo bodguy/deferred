@@ -7,16 +7,20 @@
 
 class Camera {
 public:
+  Camera();
   Camera(const glm::vec3& pos);
   ~Camera();
 
   bool Init();
+  glm::vec3 GetPosition() const;
   float GetFieldOfView() const;
   glm::vec3 GetBackgroundColor() const;
   float GetNearClipPlane() const;
   float GetFarClipPlane() const;
   float GetAspectRatio() const;
   float GetHdrExposure() const;
+  bool IsHdr() const;
+  bool IsOrthographic() const;
   Rect<unsigned int> GetPixelRect() const;
   glm::mat4 GetWorldToCameraMatrix();
   glm::mat4 GetCameraToWorldMatrix();
