@@ -1,6 +1,19 @@
 #include "Transform.h"
 
-Transform::Transform() {
+const glm::vec3 Transform::Up = glm::vec3(0.f, 1.f, 0.f);
+const glm::vec3 Transform::Down = glm::vec3(0.f, -1.f, 0.f);
+const glm::vec3 Transform::Left = glm::vec3(-1.f, 0.f, 0.f);
+const glm::vec3 Transform::Right = glm::vec3(1.f, 0.f, 0.f);
+const glm::vec3 Transform::Forward = glm::vec3(0.f, 0.f, -1.f);
+const glm::vec3 Transform::Backward = glm::vec3(0.f, 0.f, 1.f);
+const glm::vec3 Transform::One = glm::vec3(1.f, 1.f, 1.f);
+const glm::vec3 Transform::Zero = glm::vec3(0.f, 0.f, 0.f);
+
+Transform::Transform() : position(0.f), scale(1.f), forward(), up(), right() {
+
+}
+
+Transform::Transform(const glm::vec3& pos) : position(pos), scale(1.f), forward(), up(), right() {
 
 }
 
@@ -9,21 +22,54 @@ Transform::~Transform() {
 }
 
 void Transform::Translate(const glm::vec3 pos) {
-  mPosition += pos;
+  position += pos;
 }
 
-void Transform::Scale(const glm::vec3 scale) {
-  mScale += scale;
+void Transform::Scale(const glm::vec3 s) {
+  scale += s;
 }
 
 void Transform::Rotate(const glm::vec3 axis, float angle) {
-  mRotation = glm::angleAxis(angle, axis);
+  rotation = glm::angleAxis(angle, axis);
 }
 
-void Transform::Rotate(const glm::vec3 eulerAngle) {
-
+glm::vec3 Transform::GetPosition() const {
+  return position;
 }
 
-glm::mat4 Transform::GetLocalToWorldMat() const {
-  return glm::mat4(1.f);
+glm::vec3 Transform::GetForward() const {
+  forward = GetRotation() * Transform::Forward;
+  return glm::normalize(forward);
+}
+
+glm::vec3 Transform::GetUp() const {
+  up = GetRotation() * Transform::Up;
+  return glm::normalize(up);
+}
+
+glm::vec3 Transform::GetRight() const {
+  right = glm::cross(GetForward(), GetUp());
+  return glm::normalize(right);
+}
+
+glm::vec3 Transform::GetScale() const {
+  return scale;
+}
+
+glm::vec3 Transform::GetRotation() const {
+  return glm::eulerAngles(rotation) * 3.14159f / 180.f;
+}
+
+glm::mat4 Transform::GetLocalToWorldMatrix() {
+  glm::mat4 model = glm::mat4(1.0f);
+  model = glm::scale(model, scale);
+  model = glm::toMat4(rotation);
+  model = glm::translate(model, position);
+  localToWorldMatrix = model;
+  return localToWorldMatrix;
+}
+
+glm::mat4 Transform::GetWorldToLocalMatrix() {
+  worldToLocalMatrix = glm::inverse(GetLocalToWorldMatrix());
+  return worldToLocalMatrix;
 }

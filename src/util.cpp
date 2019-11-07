@@ -3,15 +3,6 @@
 #include <iostream>
 
 namespace utils {
-  const glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
-  const glm::vec3 down = glm::vec3(0.f, -1.f, 0.f);
-  const glm::vec3 left = glm::vec3(-1.f, 0.f, 0.f);
-  const glm::vec3 right = glm::vec3(1.f, 0.f, 0.f);
-  const glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
-  const glm::vec3 backward = glm::vec3(0.f, 0.f, 1.f);
-  const glm::vec3 one = glm::vec3(1.f, 1.f, 1.f);
-  const glm::vec3 zero = glm::vec3(0.f, 0.f, 0.f);
-
   const float planeVertices[48] = {
           // positions            // normals         // texcoords
           25.0f, -0.5f,  25.0f,  0.0f, 1.0f, 0.0f,  25.0f,  0.0f,

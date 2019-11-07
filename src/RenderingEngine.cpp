@@ -1,6 +1,7 @@
 #include "RenderingEngine.h"
 #include "util.h"
 #include "components/FontRenderer.h"
+#include "components/Transform.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,7 +10,7 @@
 RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
-        : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 1.0f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
+        : mWindow(nullptr), cameraPos(glm::vec3(0.0f, 2.3f, 8.0f)), cameraFront(glm::vec3(0.0f, 0.0f, -3.0f)),
           cameraUp(glm::vec3(0.0f, 1.0f, 0.0f)), cameraRight(glm::vec3()),
           projection(glm::mat4(1.f)), view(glm::mat4(1.f)),
           far_plane(25.f),
@@ -328,12 +329,12 @@ void RenderingEngine::renderFrame() {
   std::vector<glm::mat4> shadowTransforms;
   for (int i = 0; i < lights.size(); i++) {
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), lights[i].shadowMapResolution.x / lights[i].shadowMapResolution.y, lights[i].nearPlane, far_plane);
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::right, utils::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::left, utils::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::up, utils::backward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::down, utils::forward));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::backward, utils::down));
-    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + utils::forward, utils::down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Right, Transform::Down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Left, Transform::Down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Up, Transform::Backward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Down, Transform::Forward));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Backward, Transform::Down));
+    shadowTransforms.push_back(shadowProj * glm::lookAt(movablePointLights[i], movablePointLights[i] + Transform::Forward, Transform::Down));
   }
 
   glEnable(GL_DEPTH_TEST);
@@ -413,7 +414,6 @@ void RenderingEngine::renderLight() {
 }
 
 void RenderingEngine::renderQuad() {
-  glDisable(GL_DEPTH_TEST);
   glBindVertexArray(quadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   glBindVertexArray(0);

@@ -7,7 +7,6 @@
 #include <stb_image.h>
 
 namespace utils {
-  const extern glm::vec3 up, down, left, right, forward, backward, one, zero;
   const extern float planeVertices[48];
   const extern float cubeVertices[288];
   const extern float quadVertices[24];
@@ -23,5 +22,12 @@ unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& g
 unsigned int loadTexture(char const * path, bool useSRGB);
 void glDrawArrays_profile(GLenum mode, GLint first, GLsizei count);
 void resetProfile();
+
+template <typename T>
+struct Rect {
+  Rect() :x(0), y(0), w(0), h(0) {}
+  Rect(T _x, T _y, T _w, T _h) :x(_x), y(_y), w(_w), h(_h) {}
+  T x, y, w, h;
+};
 
 #endif // UTIL_H

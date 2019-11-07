@@ -7,20 +7,27 @@
 class Transform {
 public:
   Transform();
+  Transform(const glm::vec3& pos);
   ~Transform();
 
   void Translate(const glm::vec3 pos);
-  void Scale(const glm::vec3 scale);
+  void Scale(const glm::vec3 s);
   void Rotate(const glm::vec3 axis, float angle);
-  void Rotate(const glm::vec3 eulerAngle);
-  glm::vec3 GetPosition() const { return mPosition; }
-  glm::vec3 GetScale() const { return mScale; }
-  glm::vec3 GetRotation() const { return glm::eulerAngles(mRotation) * 3.14159f / 180.f; }
-  glm::mat4 GetLocalToWorldMat() const;
+  glm::vec3 GetPosition() const;
+  glm::vec3 GetForward() const;
+  glm::vec3 GetUp() const;
+  glm::vec3 GetRight() const;
+  glm::vec3 GetScale() const;
+  glm::vec3 GetRotation() const;
+  glm::mat4 GetLocalToWorldMatrix();
+  glm::mat4 GetWorldToLocalMatrix();
+
+  static const glm::vec3 Up, Down, Left, Right, Forward, Backward, One, Zero;
 
 private:
-  glm::vec3 mPosition, mScale;
-  glm::quat mRotation;
+  mutable glm::vec3 position, scale, forward, up, right;
+  glm::quat rotation;
+  glm::mat4 localToWorldMatrix, worldToLocalMatrix;
 };
 
 #endif // TRANSFORM_H

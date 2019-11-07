@@ -58,11 +58,11 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, f
     float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
     // attenuation
     float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (1.0 + clamp(light.attenuation, 0, 1) * pow(distance, 2));
+    float attenuation = 1.0 / (1.0 + clamp(light.attenuation, 0.0, 1.0) * pow(distance, 2));
 
     // combine results
     vec3 ambient = light.color * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
-    vec3 diffuse = light.color * diff * vec3(texture(material.diffuse, fs_in.TexCoords)) * light.intensity * attenuation;
+    vec3 diffuse = ambient * diff;
     vec3 specular = light.color * spec * vec3(texture(material.specular, fs_in.TexCoords)) * attenuation;
     return (ambient + (1.0 - shadow) * diffuse + specular);
 }
@@ -71,6 +71,7 @@ float CalculateShadow(vec3 fragPos, int idx) {
     vec3 fragToLight = fragPos - pointLights[idx].position;
     float currentDepth = length(fragToLight);
     float shadow = 0.0;
+    float shadowStrength = clamp(pointLights[idx].shadowStrength, 0.0, 1.0);
 
     if (pointLights[idx].castTranslucentShadow) {
         int samples = 25;
@@ -79,14 +80,14 @@ float CalculateShadow(vec3 fragPos, int idx) {
             float closestDepth = texture(depthMap[idx], fragToLight + offsets[i] * radius).r;
             closestDepth *= far_plane;
             if(currentDepth - pointLights[idx].shadowBias > closestDepth) {
-                shadow += clamp(pointLights[idx].shadowStrength, 0, 1);
+                shadow += shadowStrength;
             }
         }
         shadow /= float(samples);
     } else {
         float closestDepth = texture(depthMap[idx], fragToLight).r;
         closestDepth *= far_plane;
-        shadow = currentDepth - pointLights[idx].shadowBias > closestDepth ? clamp(pointLights[idx].shadowStrength, 0, 1) : 0.0;
+        shadow = currentDepth - pointLights[idx].shadowBias > closestDepth ? shadowStrength : 0.0;
     }
 
     return shadow;

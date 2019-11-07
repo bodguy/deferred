@@ -1,5 +1,5 @@
-#ifndef DEFERRED_RENDERINGENGINE_H
-#define DEFERRED_RENDERINGENGINE_H
+#ifndef RENDERINGENGINE_H
+#define RENDERINGENGINE_H
 
 #include <iostream>
 #include <string>
@@ -81,4 +81,4 @@ private:
 };
 
 
-#endif //DEFERRED_RENDERINGENGINE_H
+#endif // RENDERINGENGINE_H
