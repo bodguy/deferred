@@ -30,6 +30,7 @@ struct PointLight {
 struct GLFWwindow;
 class FontRenderer;
 class Camera;
+class Transform;
 class RenderingEngine {
 public:
   RenderingEngine();
@@ -73,9 +74,11 @@ private:
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;
+  float xoffset, yoffset;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
   Camera* camera;
+  Transform* cameraTrans;
 };
 
 

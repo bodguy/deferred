@@ -12,7 +12,7 @@ public:
   ~Camera();
 
   bool Init();
-  glm::vec3 GetPosition() const;
+  Transform* GetTransform();
   float GetFieldOfView() const;
   glm::vec3 GetBackgroundColor() const;
   float GetNearClipPlane() const;

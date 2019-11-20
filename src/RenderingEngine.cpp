@@ -18,7 +18,7 @@ RenderingEngine::RenderingEngine()
     diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
     depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
     hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
-    gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false) {
+    gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), cameraTrans(nullptr), xoffset(0.f), yoffset(0.f) {
   instance = this;
   movablePointLights.clear();
   lights = {
@@ -28,7 +28,6 @@ RenderingEngine::RenderingEngine()
   };
   fontRenderer = new FontRenderer();
   camera = new Camera(glm::vec3(0.0f, 2.3f, 8.0f));
-  camera->Init();
 }
 
 RenderingEngine::~RenderingEngine() {
@@ -101,8 +100,15 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   height = h;
 
   if (!fontRenderer->Init("../res/arial.ttf")) {
+    std::cout << "font Renderer Init failed" << std::endl;
     return false;
   }
+
+  if (!camera->Init()) {
+    std::cout << "camera Init failed" << std::endl;
+    return false;
+  }
+  cameraTrans = camera->GetTransform();
 
   glGenQueries(1, &gpuTimeProfileQuery);
 
@@ -242,7 +248,6 @@ int RenderingEngine::render() {
       glfwSetWindowShouldClose(mWindow, true);
 
     updateDeltaTime();
-    updateCamera();
     keyboardCallback();
 
     for (int i = 0; i < lights.size(); i++) {
@@ -362,7 +367,7 @@ void RenderingEngine::renderFrame() {
   glBindTexture(GL_TEXTURE_2D, diffuse_texture);
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
-  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(camera->GetPosition()));
+  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(camera->GetTransform()->GetPosition()));
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), camera->GetFarClipPlane());
   for (int i = 0; i < lights.size(); i++) {
     glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, ("pointLights[" + std::to_string(i) + "].position").c_str()), 1, glm::value_ptr(movablePointLights[i]));
@@ -397,8 +402,8 @@ void RenderingEngine::renderLight() {
   glEnable(GL_DEPTH_TEST);
   glUseProgram(normal_shader);
   glBindVertexArray(cubeVAO);
-  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
+  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
   glm::mat4 model = glm::mat4(1.0f);
   for (int i =0; i < lights.size(); i++) {
     model = glm::translate(model, movablePointLights[i]);
@@ -423,22 +428,14 @@ void RenderingEngine::mouseCallback(double xpos, double ypos) {
     firstMouse = false;
   }
 
-  float xoffset = xpos - lastX;
-  float yoffset = lastY - ypos;
+  xoffset = xpos - lastX;
+  yoffset = lastY - ypos;
 
   lastX = xpos;
   lastY = ypos;
 
   xoffset *= MouseSensitivity;
   yoffset *= MouseSensitivity;
-
-  Yaw += xoffset;
-  Pitch += yoffset;
-
-  if (Pitch > 89.0f)
-    Pitch = 89.0f;
-  if (Pitch < -89.0f)
-    Pitch = -89.0f;
 }
 
 void RenderingEngine::keyboardCallback() {
@@ -447,35 +444,28 @@ void RenderingEngine::keyboardCallback() {
     speed = 7.5f;
   float velocity = speed * deltaTime;
 
+  glm::vec3 forward = cameraTrans->GetForward();
+  glm::vec3 right = cameraTrans->GetRight();
+  glm::vec3 up = cameraTrans->GetUp();
   if (glfwGetKey(mWindow, GLFW_KEY_W) == GLFW_PRESS)
-    cameraPos += cameraFront * velocity;
+    cameraTrans->Translate(forward * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_S) == GLFW_PRESS)
-    cameraPos -= cameraFront * velocity;
+    cameraTrans->Translate(forward * -velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
-    cameraPos -= cameraRight * velocity;
+    cameraTrans->Translate(right * -velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
-    cameraPos += cameraRight * velocity;
+    cameraTrans->Translate(right * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_Q) == GLFW_PRESS)
-    cameraPos += cameraUp * velocity;
+    cameraTrans->Translate(up * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
-    cameraPos -= cameraUp * velocity;
+    cameraTrans->Translate(up * -velocity);
 
   if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS && !hdrKeyPressed) {
-    useHdr = !useHdr;
+    camera->SetHdr(!camera->IsHdr());
     hdrKeyPressed = true;
   }
   if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_RELEASE) {
     hdrKeyPressed = false;
-  }
-
-  if (glfwGetKey(mWindow, GLFW_KEY_1) == GLFW_PRESS) {
-    if (exposure > 0.0f)
-      exposure -= 0.001f;
-    else
-      exposure = 0.0f;
-  }
-  else if (glfwGetKey(mWindow, GLFW_KEY_2) == GLFW_PRESS) {
-    exposure += 0.001f;
   }
 }
 
@@ -486,11 +476,6 @@ void RenderingEngine::updateDeltaTime() {
 }
 
 void RenderingEngine::updateCamera() {
-  glm::vec3 f;
-  f.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-  f.y = sin(glm::radians(Pitch));
-  f.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-  cameraFront = glm::normalize(f);
-  cameraRight = glm::normalize(glm::cross(cameraFront, glm::vec3(0.f, 1.f, 0.f)));
-  cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+  cameraTrans->Rotate(Transform::Up, -yoffset);
+  cameraTrans->Rotate(cameraTrans->GetRight(), xoffset);
 }
