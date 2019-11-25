@@ -18,7 +18,7 @@ public:
   glm::vec3 GetUp() const;
   glm::vec3 GetRight() const;
   glm::vec3 GetScale() const;
-  glm::vec3 GetRotation() const;
+  glm::quat GetRotation() const;
   glm::mat4 GetLocalToWorldMatrix();
   glm::mat4 GetWorldToLocalMatrix();
 

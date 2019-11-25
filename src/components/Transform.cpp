@@ -9,13 +9,13 @@ const glm::vec3 Transform::Backward = glm::vec3(0.f, 0.f, 1.f);
 const glm::vec3 Transform::One = glm::vec3(1.f, 1.f, 1.f);
 const glm::vec3 Transform::Zero = glm::vec3(0.f, 0.f, 0.f);
 
-Transform::Transform() : position(0.f), scale(1.f) {
+Transform::Transform() : position(0.f), scale(1.f), rotation(), localToWorldMatrix(), worldToLocalMatrix() {
   forward = rotation * Transform::Forward;
   up = rotation * Transform::Up;
   right = rotation * Transform::Right;
 }
 
-Transform::Transform(const glm::vec3& pos) : position(pos), scale(1.f), forward(), up(), right() {
+Transform::Transform(const glm::vec3& pos) : position(pos), scale(1.f), rotation(), localToWorldMatrix(), worldToLocalMatrix() {
   forward = rotation * Transform::Forward;
   up = rotation * Transform::Up;
   right = rotation * Transform::Right;
@@ -34,7 +34,7 @@ void Transform::Scale(const glm::vec3 s) {
 }
 
 void Transform::Rotate(const glm::vec3 axis, float angle) {
-  rotation = glm::angleAxis(angle, axis);
+  rotation = glm::normalize(glm::angleAxis(angle, glm::normalize(axis)) * rotation);
 }
 
 glm::vec3 Transform::GetPosition() const {
@@ -60,8 +60,8 @@ glm::vec3 Transform::GetScale() const {
   return scale;
 }
 
-glm::vec3 Transform::GetRotation() const {
-  return glm::eulerAngles(rotation) * 3.14159f / 180.f;
+glm::quat Transform::GetRotation() const {
+  return rotation;
 }
 
 glm::mat4 Transform::GetLocalToWorldMatrix() {

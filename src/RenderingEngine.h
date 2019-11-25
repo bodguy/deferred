@@ -57,16 +57,13 @@ private:
   void mouseCallback(double xpos, double ypos);
   void keyboardCallback();
   void updateDeltaTime();
-  void updateCamera();
 
 private:
   static RenderingEngine *instance;
 
   GLFWwindow *mWindow;
-  glm::vec3 cameraFront, cameraUp, cameraRight;
-  glm::mat4 projection, view;
   std::vector<glm::vec3> movablePointLights;
-  float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
+  float deltaTime, lastFrame, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader, hdr_shader;
   unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
@@ -77,6 +74,7 @@ private:
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;
+  float xoffset, yoffset;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
   Camera* camera;
