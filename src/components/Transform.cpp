@@ -9,12 +9,16 @@ const glm::vec3 Transform::Backward = glm::vec3(0.f, 0.f, 1.f);
 const glm::vec3 Transform::One = glm::vec3(1.f, 1.f, 1.f);
 const glm::vec3 Transform::Zero = glm::vec3(0.f, 0.f, 0.f);
 
-Transform::Transform() : position(0.f), scale(1.f), forward(), up(), right() {
-
+Transform::Transform() : position(0.f), scale(1.f) {
+  forward = rotation * Transform::Forward;
+  up = rotation * Transform::Up;
+  right = rotation * Transform::Right;
 }
 
 Transform::Transform(const glm::vec3& pos) : position(pos), scale(1.f), forward(), up(), right() {
-
+  forward = rotation * Transform::Forward;
+  up = rotation * Transform::Up;
+  right = rotation * Transform::Right;
 }
 
 Transform::~Transform() {
@@ -63,7 +67,7 @@ glm::vec3 Transform::GetRotation() const {
 glm::mat4 Transform::GetLocalToWorldMatrix() {
   glm::mat4 model = glm::mat4(1.0f);
   model = glm::scale(model, scale);
-  model = glm::toMat4(rotation);
+  model = model * glm::toMat4(rotation);
   model = glm::translate(model, position);
   localToWorldMatrix = model;
   return localToWorldMatrix;

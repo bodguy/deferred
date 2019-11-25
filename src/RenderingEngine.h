@@ -10,9 +10,9 @@
 
 struct PointLight {
   PointLight(glm::vec3 p, glm::vec3 c)
-    : position(p), color(c), attenuation(0.05f),
-    shadowBias(0.01f), shadowFilterSharpen(0.005f), shadowStrength(1.f), nearPlane(0.1f), intensity(0.5f),
-    castShadow(true), castTranslucentShadow(true), shadowMapResolution(glm::vec2(512.f, 512.f)) {}
+          : position(p), color(c), attenuation(0.05f),
+            shadowBias(0.01f), shadowFilterSharpen(0.005f), shadowStrength(1.f), nearPlane(0.1f), intensity(0.5f),
+            castShadow(true), castTranslucentShadow(true), shadowMapResolution(glm::vec2(512.f, 512.f)) {}
 
   glm::vec3 position;
   glm::vec3 color;
@@ -51,6 +51,7 @@ public:
 
   int GetWidth() const { return width; }
   int GetHeight() const { return height; }
+  void SetSize(int w, int h);
 
 private:
   void mouseCallback(double xpos, double ypos);
@@ -62,8 +63,10 @@ private:
   static RenderingEngine *instance;
 
   GLFWwindow *mWindow;
+  glm::vec3 cameraFront, cameraUp, cameraRight;
+  glm::mat4 projection, view;
   std::vector<glm::vec3> movablePointLights;
-  float deltaTime, lastFrame, MouseSensitivity, lastX, lastY;
+  float deltaTime, lastFrame, Yaw, Pitch, MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader, hdr_shader;
   unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
@@ -74,11 +77,10 @@ private:
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;
-  float xoffset, yoffset;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
   Camera* camera;
-  Transform* cameraTrans;
+  Transform* trans;
 };
 
 
