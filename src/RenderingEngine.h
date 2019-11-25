@@ -1,31 +1,13 @@
 #ifndef RENDERINGENGINE_H
 #define RENDERINGENGINE_H
 
+#include "components/PointLight.h"
 #include <iostream>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <map>
-
-struct PointLight {
-  PointLight(glm::vec3 p, glm::vec3 c)
-          : position(p), color(c), attenuation(0.05f),
-            shadowBias(0.01f), shadowFilterSharpen(0.005f), shadowStrength(1.f), nearPlane(0.1f), intensity(0.5f),
-            castShadow(true), castTranslucentShadow(true), shadowMapResolution(glm::vec2(512.f, 512.f)) {}
-
-  glm::vec3 position;
-  glm::vec3 color;
-  float attenuation;
-  float shadowBias;
-  float shadowFilterSharpen;
-  float shadowStrength;
-  float nearPlane;
-  float intensity;
-  bool castShadow;
-  bool castTranslucentShadow;
-  glm::vec2 shadowMapResolution;
-};
 
 struct GLFWwindow;
 class FontRenderer;

@@ -28,9 +28,9 @@ RenderingEngine::RenderingEngine()
   instance = this;
   movablePointLights.clear();
   lights = {
-          PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f)),
-          PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(1.f, 1.f, 1.f)),
-          PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.f, 1.f, 1.f)),
+    PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f)),
+    PointLight(glm::vec3( 2.3f, 2.f, -4.0f),  glm::vec3(1.f, 1.f, 1.f)),
+    PointLight(glm::vec3(2.3f, 2.f, -8.0f), glm::vec3(1.f, 1.f, 1.f)),
   };
   fontRenderer = new FontRenderer();
   camera = new Camera(glm::vec3(0.0f, 2.3f, 8.0f));
