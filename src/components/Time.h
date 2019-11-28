@@ -7,6 +7,7 @@ public:
 
   void Update();
   float GetDeltaTime() const;
+  float ElapsedTime() const;
 
 private:
   float deltaTime, lastFrame;

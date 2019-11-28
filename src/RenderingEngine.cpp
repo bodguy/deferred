@@ -20,12 +20,11 @@ RenderingEngine::RenderingEngine()
         : mWindow(nullptr),
           MouseSensitivity(0.3f), lastX(0.f), lastY(0.f),
           firstMouse(true),
-          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0), hdr_shader(0),
-          cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
+          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
+          cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
-          hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
           gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), x_offset(0.f), y_offset(0.f), trans(nullptr) {
   instance = this;
   movablePointLights.clear();
@@ -42,17 +41,12 @@ RenderingEngine::RenderingEngine()
 RenderingEngine::~RenderingEngine() {
   glDeleteVertexArrays(1, &cubeVAO);
   glDeleteBuffers(1, &cubeVBO);
-  glDeleteVertexArrays(1, &quadVAO);
-  glDeleteBuffers(1, &quadVBO);
   glDeleteVertexArrays(1, &planeVAO);
   glDeleteBuffers(1, &planeVBO);
   glDeleteFramebuffers(lights.size(), depthCubeMapFBO);
   glDeleteTextures(lights.size(), depthCubeMap);
   glDeleteFramebuffers(1, &depthMapFBO);
   glDeleteTextures(1, &depthMap);
-  glDeleteFramebuffers(1, &hdrFBO);
-  glDeleteTextures(1, &hdrColorTexture);
-  glDeleteRenderbuffers(1, &hdrRboDepth);
 
   glDeleteProgram(depth_shader);
   glDeleteProgram(shadow_shader);
@@ -60,7 +54,6 @@ RenderingEngine::~RenderingEngine() {
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteProgram(shadow_cubemap_shader);
-  glDeleteProgram(hdr_shader);
   glDeleteTextures(1, &diffuse_texture);
   glDeleteTextures(1, &diffuse_texture2);
   glDeleteTextures(1, &normal_texture);
@@ -145,16 +138,6 @@ void RenderingEngine::initVertex() {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
   glEnableVertexAttribArray(2);
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (6 * sizeof(float)));
-
-  glGenVertexArrays(1, &quadVAO);
-  glGenBuffers(1, &quadVBO);
-  glBindVertexArray(quadVAO);
-  glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::quadVertices), &utils::quadVertices, GL_STATIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
 }
 
 bool RenderingEngine::initFramebuffer() {
@@ -197,22 +180,6 @@ bool RenderingEngine::initFramebuffer() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
-  // make hdr framebuffer
-  glGenTextures(1, &hdrColorTexture);
-  glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glGenFramebuffers(1, &hdrFBO);
-  glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-  glGenRenderbuffers(1, &hdrRboDepth);
-  glBindRenderbuffer(GL_RENDERBUFFER, hdrRboDepth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdrRboDepth);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorTexture, 0);
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
   return true;
 }
 
@@ -232,17 +199,15 @@ bool RenderingEngine::initShader() {
   if (!depth_cubemap_shader) return false;
   shadow_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/shadow_vs.shader", "../shaders/point_shadow/shadow_fs.shader");
   if (!shadow_cubemap_shader) return false;
-  hdr_shader = loadShaderFromFile("../shaders/hdr/hdr_vs.shader", "../shaders/hdr/hdr_fs.shader");
-  if (!hdr_shader) return false;
   return true;
 }
 
 bool RenderingEngine::initTexture() {
-  diffuse_texture = loadTexture("../res/wood.png", false);
+  diffuse_texture = loadTexture("../res/wood.png", true);
   if (!diffuse_texture) return false;
-  diffuse_texture2 = loadTexture("../res/brickwall.jpg", false);
+  diffuse_texture2 = loadTexture("../res/brickwall.jpg", true);
   if (!diffuse_texture2) return false;
-  normal_texture = loadTexture("../res/brickwall_normal.jpg", false);
+  normal_texture = loadTexture("../res/brickwall_normal.jpg", true);
   if (!normal_texture) return false;
   return true;
 }
@@ -257,9 +222,9 @@ int RenderingEngine::render() {
 
     for (int i = 0; i < lights.size(); i++) {
       movablePointLights.push_back(glm::vec3(
-              lights[i].position.x + cos(time->GetDeltaTime() * (0.5f * (i + 1))) * 5.f,
+              lights[i].position.x + cos(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f,
               lights[i].position.y,
-              lights[i].position.z + sin(time->GetDeltaTime() * (0.5f * (i + 1))) * 5.f
+              lights[i].position.z + sin(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f
       ));
     }
 
@@ -367,8 +332,9 @@ void RenderingEngine::renderFrame() {
 
   // 2. drawing to the hdr floating point framebuffer
   glViewport(0, 0, width, height);
-  glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glBindFramebuffer(GL_FRAMEBUFFER, camera->GetHDRFBO());
+  glm::vec4 backgroundColor = camera->GetBackgroundColor();
+  glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(shadow_cubemap_shader);
   glUniform1i(glGetUniformLocation(shadow_cubemap_shader, "material.diffuse"), 0);
@@ -395,16 +361,7 @@ void RenderingEngine::renderFrame() {
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 128.0f);
   renderScene(shadow_cubemap_shader);
   renderLight();
-
-  // 3. drawing to quad
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glUseProgram(hdr_shader);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
-  glUniform1i(glGetUniformLocation(hdr_shader, "hdr"), camera->IsHdr());
-  glUniform1f(glGetUniformLocation(hdr_shader, "exposure"), camera->GetHdrExposure());
-  renderQuad();
+  camera->Render();
 }
 
 void RenderingEngine::renderLight() {
@@ -422,12 +379,6 @@ void RenderingEngine::renderLight() {
     glDrawArrays_profile(GL_TRIANGLES, 0, 36);
     model = glm::mat4(1.0f);
   }
-}
-
-void RenderingEngine::renderQuad() {
-  glBindVertexArray(quadVAO);
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-  glBindVertexArray(0);
 }
 
 void RenderingEngine::SetSize(int w, int h) {

@@ -13,3 +13,7 @@ void Time::Update() {
 float Time::GetDeltaTime() const {
   return deltaTime;
 }
+
+float Time::ElapsedTime() const {
+  return lastFrame;
+}

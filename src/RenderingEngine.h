@@ -28,7 +28,6 @@ public:
   void renderScene(unsigned int shader);
   void renderFrame();
   void renderLight();
-  void renderQuad();
 
   static RenderingEngine* GetInstance() { return instance; }
 
@@ -47,12 +46,11 @@ private:
   std::vector<glm::vec3> movablePointLights;
   float MouseSensitivity, lastX, lastY;
   bool firstMouse;
-  unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader, hdr_shader;
-  unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
+  unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
+  unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO;
   int width, height;
   unsigned int diffuse_texture, diffuse_texture2, normal_texture;
   unsigned int depthCubeMapFBO[4], depthCubeMap[4], depthMapFBO, depthMap;
-  unsigned int hdrFBO, hdrColorTexture, hdrRboDepth;
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;

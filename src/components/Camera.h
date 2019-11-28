@@ -14,7 +14,7 @@ public:
   bool Init();
   Transform* GetTransform();
   float GetFieldOfView() const;
-  glm::vec3 GetBackgroundColor() const;
+  glm::vec4 GetBackgroundColor() const;
   float GetNearClipPlane() const;
   float GetFarClipPlane() const;
   float GetAspectRatio() const;
@@ -25,14 +25,15 @@ public:
   glm::mat4 GetWorldToCameraMatrix();
   glm::mat4 GetCameraToWorldMatrix();
   glm::mat4 GetProjectionMatrix();
+  unsigned int GetHDRFBO() const;
 
   void Render();
 
   void SetPixelRect(const Rect<unsigned int>& r);
   void SetHdr(bool f);
-  void SetOrthographic(bool f);
+  void SetOrthographic(bool f); // WORK
   void SetFieldOfView(float degree);
-  void SetBackgroundColor(glm::vec3 color);
+  void SetBackgroundColor(glm::vec4 color);
   void SetNearClipPlane(float near);
   void SetFarClipPlane(float far);
   void SetAspectRatio(int w, int h);
@@ -45,7 +46,7 @@ private:
   bool hdr;
   bool orthographic;
   float fieldOfView;
-  glm::vec3 backgroundColor;
+  glm::vec4 backgroundColor;
   float nearClipPlane, farClipPlane;
   float aspectRatio;
   float exposure;

@@ -68,7 +68,7 @@ float Camera::GetFieldOfView() const {
   return fieldOfView;
 }
 
-glm::vec3 Camera::GetBackgroundColor() const {
+glm::vec4 Camera::GetBackgroundColor() const {
   return backgroundColor;
 }
 
@@ -127,7 +127,7 @@ glm::mat4 Camera::GetProjectionMatrix() {
 
 void Camera::Render() {
   glViewport(pixelRect.x, pixelRect.y, pixelRect.w, pixelRect.h);
-  glBindFramebuffer(GL_FRAMEBUFFER, targetTexture == 0 ? 0 : targetTexture);
+  glBindFramebuffer(GL_FRAMEBUFFER, targetTexture);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glUseProgram(hdrShader);
   glActiveTexture(GL_TEXTURE0);
@@ -162,7 +162,7 @@ void Camera::SetFieldOfView(float degree) {
   fieldOfView = glm::radians(degree);
 }
 
-void Camera::SetBackgroundColor(const glm::vec3 color) {
+void Camera::SetBackgroundColor(const glm::vec4 color) {
   backgroundColor = color;
 }
 
@@ -180,4 +180,8 @@ void Camera::SetAspectRatio(int w, int h) {
 
 void Camera::SetHdrExposure(float e) {
   exposure = e;
+}
+
+unsigned int Camera::GetHDRFBO() const {
+  return hdrFBO;
 }
