@@ -265,7 +265,6 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDisable(GL_CULL_FACE);
   // floor
   glm::mat4 model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(1.84f, 2.12f, -4.52f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glBindVertexArray(planeVAO);
   glDrawArrays_profile(GL_TRIANGLES, 0, 6);
@@ -273,16 +272,23 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glCullFace(GL_BACK);
   // first cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(1.92f, 2.12f, -6.51f));
+  model = glm::translate(model, glm::vec3(0.0f, 1.5f, -8.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glBindVertexArray(cubeVAO);
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // another cube
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-0.36f, 2.46f, -4.66f));
+  model = glm::translate(model, glm::vec3(2.0f, 0.0f, -6.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.5f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
+  // another cube2
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -4.0));
+  model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+  model = glm::scale(model, glm::vec3(0.25));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 
@@ -290,14 +296,20 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glBindTexture(GL_TEXTURE_2D, diffuse_texture2);
   // cube1
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(1.92f, 2.12f, -2.35f));
+  model = glm::translate(model, glm::vec3(1.92f, 0.f, -3.f));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
   // cube2
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(6.41f, 2.46f, -3.52f));
+  model = glm::translate(model, glm::vec3(-4.0f, 0.0f, -2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 1.0, 1.0)));
+  model = glm::scale(model, glm::vec3(0.5f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays_profile(GL_TRIANGLES, 0, 36);
+  // cube3
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 0.0));
   model = glm::scale(model, glm::vec3(0.5f));
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
@@ -332,8 +344,7 @@ void RenderingEngine::renderFrame() {
 
   // 2. drawing to the hdr floating point framebuffer
   glViewport(0, 0, width, height);
-//  glBindFramebuffer(GL_FRAMEBUFFER, camera->GetHDRFBO());
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_FRAMEBUFFER, camera->GetHDRFBO());
   glm::vec4 backgroundColor = camera->GetBackgroundColor();
   glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -362,7 +373,7 @@ void RenderingEngine::renderFrame() {
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 128.0f);
   renderScene(shadow_cubemap_shader);
   renderLight();
-//  camera->Render();
+  camera->Render();
 }
 
 void RenderingEngine::renderLight() {
