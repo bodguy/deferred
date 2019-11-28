@@ -13,6 +13,7 @@ struct GLFWwindow;
 class FontRenderer;
 class Camera;
 class Transform;
+class Time;
 class RenderingEngine {
 public:
   RenderingEngine();
@@ -38,14 +39,13 @@ public:
 private:
   void mouseCallback(double xpos, double ypos);
   void keyboardCallback();
-  void updateDeltaTime();
 
 private:
   static RenderingEngine *instance;
 
   GLFWwindow *mWindow;
   std::vector<glm::vec3> movablePointLights;
-  float deltaTime, lastFrame, MouseSensitivity, lastX, lastY;
+  float MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader, hdr_shader;
   unsigned int cubeVAO, cubeVBO, quadVAO, quadVBO, planeVAO, planeVBO;
@@ -56,11 +56,12 @@ private:
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;
-  float xoffset, yoffset;
+  float x_offset, y_offset;
   std::vector<PointLight> lights;
   FontRenderer* fontRenderer;
   Camera* camera;
   Transform* trans;
+  Time* time;
 };
 
 

@@ -3,6 +3,7 @@
 #include "components/FontRenderer.h"
 #include "components/Transform.h"
 #include "components/Camera.h"
+#include "components/Time.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -17,14 +18,15 @@ RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
         : mWindow(nullptr),
-          deltaTime(0.0f), lastFrame(0.0f), MouseSensitivity(0.3f), firstMouse(true),
+          MouseSensitivity(0.3f), lastX(0.f), lastY(0.f),
+          firstMouse(true),
           depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0), hdr_shader(0),
           cubeVAO(0), cubeVBO(0), quadVAO(0), quadVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
           depthCubeMapFBO{0,}, depthCubeMap{0,}, depthMapFBO(0), depthMap(0),
           hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), xoffset(0.f), yoffset(0.f) {
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), x_offset(0.f), y_offset(0.f), trans(nullptr) {
   instance = this;
   movablePointLights.clear();
   lights = {
@@ -34,6 +36,7 @@ RenderingEngine::RenderingEngine()
   };
   fontRenderer = new FontRenderer();
   camera = new Camera(glm::vec3(0.0f, 2.3f, 8.0f));
+  time = new Time();
 }
 
 RenderingEngine::~RenderingEngine() {
@@ -62,10 +65,9 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(1, &diffuse_texture2);
   glDeleteTextures(1, &normal_texture);
   glDeleteQueries(1, &gpuTimeProfileQuery);
-  delete fontRenderer;
-  fontRenderer = nullptr;
-  delete camera;
-  camera = nullptr;
+  SAFE_DEALLOC(fontRenderer);
+  SAFE_DEALLOC(camera);
+  SAFE_DEALLOC(time);
 }
 
 bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
@@ -250,14 +252,14 @@ int RenderingEngine::render() {
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
       glfwSetWindowShouldClose(mWindow, true);
 
-    updateDeltaTime();
+    time->Update();
     keyboardCallback();
 
     for (int i = 0; i < lights.size(); i++) {
       movablePointLights.push_back(glm::vec3(
-              lights[i].position.x + cos(lastFrame * (0.5f * (i + 1))) * 5.f,
+              lights[i].position.x + cos(time->GetDeltaTime() * (0.5f * (i + 1))) * 5.f,
               lights[i].position.y,
-              lights[i].position.z + sin(lastFrame * (0.5f * (i + 1))) * 5.f
+              lights[i].position.z + sin(time->GetDeltaTime() * (0.5f * (i + 1))) * 5.f
       ));
     }
 
@@ -440,21 +442,21 @@ void RenderingEngine::mouseCallback(double xpos, double ypos) {
     firstMouse = false;
   }
 
-  xoffset = (xpos - lastX) * MouseSensitivity * deltaTime;
-  yoffset = (lastY - ypos) * MouseSensitivity * deltaTime;
+  x_offset = (xpos - lastX) * MouseSensitivity * time->GetDeltaTime();
+  y_offset = (lastY - ypos) * MouseSensitivity * time->GetDeltaTime();
 
   lastX = xpos;
   lastY = ypos;
 
-  trans->Rotate(Transform::Up, -xoffset);
-  trans->Rotate(trans->GetRight(), yoffset);
+  trans->Rotate(Transform::Up, -x_offset);
+  trans->Rotate(trans->GetRight(), y_offset);
 }
 
 void RenderingEngine::keyboardCallback() {
   float speed = 2.5f;
   if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     speed = 7.5f;
-  float velocity = speed * deltaTime;
+  float velocity = speed * time->GetDeltaTime();
 
   glm::vec3 forward = trans->GetForward();
   glm::vec3 right = trans->GetRight();
@@ -479,10 +481,4 @@ void RenderingEngine::keyboardCallback() {
   if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_RELEASE) {
     hdrKeyPressed = false;
   }
-}
-
-void RenderingEngine::updateDeltaTime() {
-  auto currentFrame = (float) glfwGetTime();
-  deltaTime = currentFrame - lastFrame;
-  lastFrame = currentFrame;
 }

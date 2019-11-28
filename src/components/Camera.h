@@ -32,7 +32,7 @@ public:
   void SetHdr(bool f);
   void SetOrthographic(bool f);
   void SetFieldOfView(float degree);
-  void SetBackgroundColor(const glm::vec3 color);
+  void SetBackgroundColor(glm::vec3 color);
   void SetNearClipPlane(float near);
   void SetFarClipPlane(float far);
   void SetAspectRatio(int w, int h);

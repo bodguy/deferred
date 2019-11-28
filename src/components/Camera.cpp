@@ -6,14 +6,14 @@ Camera::Camera()
   : transform(), pixelRect(), normalizedRect(), hdr(false), orthographic(false), fieldOfView(glm::radians(45.f)), backgroundColor(0.f),
    nearClipPlane(0.1f), farClipPlane(100.f), aspectRatio(0.f), exposure(1.f), targetTexture(0), useOcclusionCulling(false),
    worldToCameraMatrix(), cameraToWorldMatrix(), projectionMatrix(),
-   hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0), hdrShader(0) {
+   quadVAO(0), quadVBO(0), hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0), hdrShader(0) {
 }
 
 Camera::Camera(const glm::vec3& pos)
   : transform(pos), pixelRect(), normalizedRect(), hdr(false), orthographic(false), fieldOfView(glm::radians(45.f)), backgroundColor(0.f),
     nearClipPlane(0.1f), farClipPlane(100.f), aspectRatio(0.f), exposure(1.f), targetTexture(0), useOcclusionCulling(false),
     worldToCameraMatrix(), cameraToWorldMatrix(), projectionMatrix(),
-    hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0), hdrShader(0) {
+    quadVAO(0), quadVBO(0), hdrFBO(0), hdrColorTexture(0), hdrRboDepth(0), hdrShader(0) {
 }
 
 Camera::~Camera() {
@@ -35,13 +35,13 @@ bool Camera::Init() {
   glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(utils::quadVertices), &utils::quadVertices, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) nullptr);
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
 
   glGenTextures(1, &hdrColorTexture);
   glBindTexture(GL_TEXTURE_2D, hdrColorTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, pixelRect.w, pixelRect.h, 0, GL_RGBA, GL_FLOAT, NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, pixelRect.w, pixelRect.h, 0, GL_RGBA, GL_FLOAT, nullptr);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glGenFramebuffers(1, &hdrFBO);
@@ -56,10 +56,8 @@ bool Camera::Init() {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   hdrShader = loadShaderFromFile("../shaders/hdr/hdr_vs.shader", "../shaders/hdr/hdr_fs.shader");
-  if (!hdrShader)
-    return false;
+  return hdrShader != 0;
 
-  return true;
 }
 
 Transform* Camera::GetTransform() {

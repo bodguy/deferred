@@ -1,3 +1,4 @@
+#include <glm/gtc/matrix_transform.hpp>
 #include "Transform.h"
 
 const glm::vec3 Transform::Up = glm::vec3(0.f, 1.f, 0.f);
