@@ -48,9 +48,9 @@ RenderingEngine::~RenderingEngine() {
   glDeleteFramebuffers(1, &depthMapFBO);
   glDeleteTextures(1, &depthMap);
 
-  glDeleteProgram(depth_shader);
-  glDeleteProgram(shadow_shader);
-  glDeleteProgram(depth_visual_shader);
+//  glDeleteProgram(depth_shader);
+//  glDeleteProgram(shadow_shader);
+//  glDeleteProgram(depth_visual_shader);
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteProgram(shadow_cubemap_shader);
@@ -185,12 +185,12 @@ bool RenderingEngine::initFramebuffer() {
 
 bool RenderingEngine::initShader() {
   // for directional light shadow mapping (currently not used)
-  depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
-  if (!depth_shader) return false;
-  shadow_shader = loadShaderFromFile("../shaders/shadow/shadow_vs.shader", "../shaders/shadow/shadow_fs.shader");
-  if (!shadow_shader) return false;
-  depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader", "../shaders/shadow/depth_visual_fs.shader");
-  if (!depth_visual_shader) return false;
+//  depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
+//  if (!depth_shader) return false;
+//  shadow_shader = loadShaderFromFile("../shaders/shadow/shadow_vs.shader", "../shaders/shadow/shadow_fs.shader");
+//  if (!shadow_shader) return false;
+//  depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader", "../shaders/shadow/depth_visual_fs.shader");
+//  if (!depth_visual_shader) return false;
   // for rendering light objects
   normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
   if (!normal_shader) return false;
@@ -203,11 +203,11 @@ bool RenderingEngine::initShader() {
 }
 
 bool RenderingEngine::initTexture() {
-  diffuse_texture = loadTexture("../res/wood.png", true);
+  diffuse_texture = loadTexture("../res/wood.png", false);
   if (!diffuse_texture) return false;
-  diffuse_texture2 = loadTexture("../res/brickwall.jpg", true);
+  diffuse_texture2 = loadTexture("../res/brickwall.jpg", false);
   if (!diffuse_texture2) return false;
-  normal_texture = loadTexture("../res/brickwall_normal.jpg", true);
+  normal_texture = loadTexture("../res/brickwall_normal.jpg", false);
   if (!normal_texture) return false;
   return true;
 }
@@ -332,7 +332,8 @@ void RenderingEngine::renderFrame() {
 
   // 2. drawing to the hdr floating point framebuffer
   glViewport(0, 0, width, height);
-  glBindFramebuffer(GL_FRAMEBUFFER, camera->GetHDRFBO());
+//  glBindFramebuffer(GL_FRAMEBUFFER, camera->GetHDRFBO());
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glm::vec4 backgroundColor = camera->GetBackgroundColor();
   glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -361,7 +362,7 @@ void RenderingEngine::renderFrame() {
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "material.shininess"), 128.0f);
   renderScene(shadow_cubemap_shader);
   renderLight();
-  camera->Render();
+//  camera->Render();
 }
 
 void RenderingEngine::renderLight() {
