@@ -26,15 +26,15 @@ Transform::~Transform() {
 
 }
 
-void Transform::Translate(const glm::vec3 pos) {
+void Transform::Translate(const glm::vec3& pos) {
   position += pos;
 }
 
-void Transform::Scale(const glm::vec3 s) {
+void Transform::Scale(const glm::vec3& s) {
   scale += s;
 }
 
-void Transform::Rotate(const glm::vec3 axis, float angle) {
+void Transform::Rotate(const glm::vec3& axis, float angle) {
   rotation = glm::normalize(glm::angleAxis(angle, glm::normalize(axis)) * rotation);
 }
 

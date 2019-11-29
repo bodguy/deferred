@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 #include <vector>
 
-class Camera;
 class PointLight {
 public:
   PointLight(const glm::vec3& position, const glm::vec3& ambientColor);
@@ -15,7 +14,7 @@ public:
   Transform* GetTransform();
   glm::mat4 GetPerspective() const;
   std::vector<glm::mat4> GetCubemapShadowMatrix() const;
-  void Render(unsigned int vao, unsigned int shader, Camera* cam);
+  void RenderLight(unsigned int shader);
   void RenderToTexture(unsigned int shader);
   void BindUniform(unsigned int shader, unsigned int i) const;
 

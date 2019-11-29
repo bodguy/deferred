@@ -63,12 +63,7 @@ std::vector<glm::mat4> PointLight::GetCubemapShadowMatrix() const {
   return mats;
 }
 
-void PointLight::Render(unsigned int vao, unsigned int shader, Camera* cam) {
-  glEnable(GL_DEPTH_TEST);
-  glUseProgram(shader);
-  glBindVertexArray(vao);
-  glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(cam->GetProjectionMatrix()));
-  glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(cam->GetWorldToCameraMatrix()));
+void PointLight::RenderLight(unsigned int shader) {
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(transform.GetLocalToWorldMatrix()));
   glUniform4fv(glGetUniformLocation(shader, "LightColor"), 1, glm::value_ptr(color));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);

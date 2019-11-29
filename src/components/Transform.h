@@ -11,9 +11,9 @@ public:
   Transform(const glm::vec3& pos);
   ~Transform();
 
-  void Translate(const glm::vec3 pos);
-  void Scale(const glm::vec3 s);
-  void Rotate(const glm::vec3 axis, float angle);
+  void Translate(const glm::vec3& pos);
+  void Scale(const glm::vec3& s);
+  void Rotate(const glm::vec3& axis, float angle);
   glm::vec3 GetPosition() const;
   glm::vec3 GetForward() const;
   glm::vec3 GetUp() const;

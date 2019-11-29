@@ -330,8 +330,13 @@ void RenderingEngine::renderFrame() {
     lights[i]->BindUniform(shadow_cubemap_shader, i);
   }
   renderScene(shadow_cubemap_shader);
+  glEnable(GL_DEPTH_TEST);
+  glUseProgram(normal_shader);
+  glBindVertexArray(cubeVAO);
+  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
+  glUniformMatrix4fv(glGetUniformLocation(normal_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
   for (int i = 0; i < lights.size(); i++) {
-    lights[i]->Render(cubeVAO, normal_shader, camera);
+    lights[i]->RenderLight(normal_shader);
   }
   camera->Render();
 }
