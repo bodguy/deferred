@@ -27,7 +27,6 @@ public:
   int render();
   void renderScene(unsigned int shader);
   void renderFrame();
-  void renderLight();
 
   static RenderingEngine* GetInstance() { return instance; }
 
@@ -43,19 +42,18 @@ private:
   static RenderingEngine *instance;
 
   GLFWwindow *mWindow;
-  std::vector<glm::vec3> movablePointLights;
   float MouseSensitivity, lastX, lastY;
   bool firstMouse;
   unsigned int depth_shader, shadow_shader, depth_visual_shader, normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
   unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO;
   int width, height;
   unsigned int diffuse_texture, diffuse_texture2, normal_texture;
-  unsigned int depthCubeMapFBO[4], depthCubeMap[4], depthMapFBO, depthMap;
+  unsigned int depthMapFBO, depthMap;
   unsigned int gpuTimeProfileQuery;
   unsigned int timeElapsed;
   bool hdrKeyPressed;
   float x_offset, y_offset;
-  std::vector<PointLight> lights;
+  std::vector<PointLight*> lights;
   FontRenderer* fontRenderer;
   Camera* camera;
   Transform* trans;

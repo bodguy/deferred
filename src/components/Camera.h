@@ -31,7 +31,7 @@ public:
 
   void SetPixelRect(const Rect<unsigned int>& r);
   void SetHdr(bool f);
-  void SetOrthographic(bool f); // WORK
+  void SetOrthographic(bool f);
   void SetFieldOfView(float degree);
   void SetBackgroundColor(glm::vec4 color);
   void SetNearClipPlane(float near);
