@@ -32,7 +32,6 @@ struct Rect {
 
 GLenum glCheckError_(const char *file, int line);
 #define glCheckError() glCheckError_(__FILE__, __LINE__)
-
 #define SAFE_DEALLOC(ptr) delete ptr; ptr = nullptr
 
 #endif // UTIL_H

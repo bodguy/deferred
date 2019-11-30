@@ -20,17 +20,15 @@ RenderingEngine::RenderingEngine()
         : mWindow(nullptr),
           MouseSensitivity(0.3f), lastX(0.f), lastY(0.f),
           firstMouse(true),
-          depth_shader(0), shadow_shader(0), depth_visual_shader(0), normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
+          normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
           diffuse_texture(0), diffuse_texture2(0), normal_texture(0),
-          depthMapFBO(0), depthMap(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), x_offset(0.f), y_offset(0.f), trans(nullptr) {
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), x_offset(0.f), y_offset(0.f),
+          fontRenderer(new FontRenderer()), camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))), time (new Time()),
+          cameraTrans(nullptr), lights() {
   instance = this;
   lights.clear();
-  fontRenderer = new FontRenderer();
-  camera = new Camera(glm::vec3(0.0f, 2.3f, 8.0f));
-  time = new Time();
 }
 
 RenderingEngine::~RenderingEngine() {
@@ -38,12 +36,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteBuffers(1, &cubeVBO);
   glDeleteVertexArrays(1, &planeVAO);
   glDeleteBuffers(1, &planeVBO);
-  glDeleteFramebuffers(1, &depthMapFBO);
-  glDeleteTextures(1, &depthMap);
 
-//  glDeleteProgram(depth_shader);
-//  glDeleteProgram(shadow_shader);
-//  glDeleteProgram(depth_visual_shader);
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
   glDeleteProgram(shadow_cubemap_shader);
@@ -51,6 +44,7 @@ RenderingEngine::~RenderingEngine() {
   glDeleteTextures(1, &diffuse_texture2);
   glDeleteTextures(1, &normal_texture);
   glDeleteQueries(1, &gpuTimeProfileQuery);
+
   SAFE_DEALLOC(fontRenderer);
   SAFE_DEALLOC(camera);
   SAFE_DEALLOC(time);
@@ -103,7 +97,7 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
     std::cout << "camera Init failed" << std::endl;
     return false;
   }
-  trans = camera->GetTransform();
+  cameraTrans = camera->GetTransform();
 
   PointLight* light1 = new PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f));
   if (!light1->Init()) {
@@ -157,36 +151,10 @@ void RenderingEngine::initVertex() {
 }
 
 bool RenderingEngine::initFramebuffer() {
-  // make depth framebuffer
-  glGenTextures(1, &depthMap);
-  glBindTexture(GL_TEXTURE_2D, depthMap);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-  float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-  glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-  glGenFramebuffers(1, &depthMapFBO);
-  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-  glDrawBuffer(GL_NONE);
-  glReadBuffer(GL_NONE);
-  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return false;
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
   return true;
 }
 
 bool RenderingEngine::initShader() {
-  // for directional light shadow mapping (currently not used)
-//  depth_shader = loadShaderFromFile("../shaders/shadow/depth_vs.shader", "../shaders/shadow/depth_fs.shader");
-//  if (!depth_shader) return false;
-//  shadow_shader = loadShaderFromFile("../shaders/shadow/shadow_vs.shader", "../shaders/shadow/shadow_fs.shader");
-//  if (!shadow_shader) return false;
-//  depth_visual_shader = loadShaderFromFile("../shaders/shadow/depth_visual_vs.shader", "../shaders/shadow/depth_visual_fs.shader");
-//  if (!depth_visual_shader) return false;
-  // for rendering light objects
   normal_shader = loadShaderFromFile("../shaders/normal/normal_vs.shader", "../shaders/normal/normal_fs.shader");
   if (!normal_shader) return false;
   // for point(omnidirecitonal) light shadow mapping
@@ -231,9 +199,9 @@ int RenderingEngine::render() {
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 4), "use hdr: %s", camera->IsHdr() ? "true" : "false");
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 3), "exposure: %.5f", camera->GetHdrExposure());
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
-    glm::vec3 f = trans->GetForward();
+    glm::vec3 f = cameraTrans->GetForward();
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "camera front: [%.2f, %.2f, %.2f]", f.x, f.y, f.z);
-    glm::vec3 p = trans->GetPosition();
+    glm::vec3 p = cameraTrans->GetPosition();
     fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "camera pos: [%.2f, %.2f, %.2f]", p.x, p.y, p.z);
 
     resetProfile();
@@ -321,7 +289,7 @@ void RenderingEngine::renderFrame() {
   glBindTexture(GL_TEXTURE_2D, diffuse_texture);
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
   glUniformMatrix4fv(glGetUniformLocation(shadow_cubemap_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
-  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(trans->GetPosition()));
+  glUniform3fv(glGetUniformLocation(shadow_cubemap_shader, "viewPos"), 1, glm::value_ptr(cameraTrans->GetPosition()));
   glUniform1f(glGetUniformLocation(shadow_cubemap_shader, "far_plane"), camera->GetFarClipPlane());
   for (int i = 0; i < lights.size(); i++) {
     lights[i]->BindUniform(shadow_cubemap_shader, i);
@@ -356,8 +324,8 @@ void RenderingEngine::mouseCallback(double xpos, double ypos) {
   lastX = xpos;
   lastY = ypos;
 
-  trans->Rotate(Transform::Up, -x_offset);
-  trans->Rotate(trans->GetRight(), y_offset);
+  cameraTrans->Rotate(Transform::Up, -x_offset);
+  cameraTrans->Rotate(cameraTrans->GetRight(), y_offset);
 }
 
 void RenderingEngine::keyboardCallback() {
@@ -366,21 +334,21 @@ void RenderingEngine::keyboardCallback() {
     speed = 7.5f;
   float velocity = speed * time->GetDeltaTime();
 
-  glm::vec3 forward = trans->GetForward();
-  glm::vec3 right = trans->GetRight();
-  glm::vec3 up = trans->GetUp();
+  glm::vec3 forward = cameraTrans->GetForward();
+  glm::vec3 right = cameraTrans->GetRight();
+  glm::vec3 up = cameraTrans->GetUp();
   if (glfwGetKey(mWindow, GLFW_KEY_W) == GLFW_PRESS)
-    trans->Translate(forward * velocity);
+    cameraTrans->Translate(forward * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_S) == GLFW_PRESS)
-    trans->Translate(-forward * velocity);
+    cameraTrans->Translate(-forward * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
-    trans->Translate(-right * velocity);
+    cameraTrans->Translate(-right * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_D) == GLFW_PRESS)
-    trans->Translate(right * velocity);
+    cameraTrans->Translate(right * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_Q) == GLFW_PRESS)
-    trans->Translate(up * velocity);
+    cameraTrans->Translate(up * velocity);
   if (glfwGetKey(mWindow, GLFW_KEY_E) == GLFW_PRESS)
-    trans->Translate(-up * velocity);
+    cameraTrans->Translate(-up * velocity);
 
   if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS && !hdrKeyPressed) {
     camera->SetHdr(!camera->IsHdr());
