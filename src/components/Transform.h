@@ -23,6 +23,9 @@ public:
   glm::mat4 GetLocalToWorldMatrix();
   glm::mat4 GetWorldToLocalMatrix();
 
+  void SetPosition(const glm::vec3& pos);
+  void SetScale(const glm::vec3& s);
+
   static const glm::vec3 Up, Down, Left, Right, Forward, Backward, One, Zero;
 
 private:

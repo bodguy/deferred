@@ -67,9 +67,9 @@ glm::quat Transform::GetRotation() const {
 
 glm::mat4 Transform::GetLocalToWorldMatrix() {
   glm::mat4 model = glm::mat4(1.0f);
-  model = glm::scale(model, scale);
-  model = model * glm::toMat4(rotation);
   model = glm::translate(model, position);
+  model = model * glm::toMat4(rotation);
+  model = glm::scale(model, scale);
   localToWorldMatrix = model;
   return localToWorldMatrix;
 }
@@ -77,4 +77,12 @@ glm::mat4 Transform::GetLocalToWorldMatrix() {
 glm::mat4 Transform::GetWorldToLocalMatrix() {
   worldToLocalMatrix = glm::inverse(GetLocalToWorldMatrix());
   return worldToLocalMatrix;
+}
+
+void Transform::SetPosition(const glm::vec3 &pos) {
+  position = pos;
+}
+
+void Transform::SetScale(const glm::vec3 &s) {
+  scale = s;
 }

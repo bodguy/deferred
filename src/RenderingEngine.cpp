@@ -303,10 +303,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
 void RenderingEngine::renderFrame() {
   // 1. drawing geometry to depth cube map
   for (int i = 0; i < lights.size(); i++) {
-    lights[i]->GetTransform()->Translate(glm::vec3(
-            cos(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f,
-            0,
-            sin(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f));
+    lights[i]->GetTransform()->SetPosition(glm::vec3(cos(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f, 3, sin(time->ElapsedTime() * (0.5f * (i + 1))) * 5.f));
     lights[i]->RenderToTexture(depth_cubemap_shader);
     renderScene(depth_cubemap_shader);
   }

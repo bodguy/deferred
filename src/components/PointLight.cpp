@@ -8,6 +8,7 @@ PointLight::PointLight(const glm::vec3& position, const glm::vec3& ambientColor)
     shadowBias(0.01f), shadowFilterSharpen(0.005f), shadowStrength(1.f), nearPlane(0.1f), farPlane(100.f), intensity(0.5f),
     castShadow(true), castTranslucentShadow(true), shadowMapResolution(glm::vec2(512.f, 512.f)), depthCubemap(0), depthCubemapFBO(0), transform(position) {
   normalizedResolution = shadowMapResolution.x / shadowMapResolution.y;
+  transform.SetScale(glm::vec3(0.05f));
 }
 
 PointLight::~PointLight() {
@@ -93,7 +94,7 @@ void PointLight::BindUniform(unsigned int shader, unsigned int i) const {
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].intensity").c_str()), intensity);
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].castShadow").c_str()), castShadow);
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].castTranslucentShadow").c_str()), castTranslucentShadow);
-  glUniform1i(glGetUniformLocation(shader, ("depthMap[" + std::to_string(i) + "]").c_str()), i);
+  glUniform1i(glGetUniformLocation(shader, ("depthMap[" + std::to_string(i) + "]").c_str()), i + 1);
   glActiveTexture(GL_TEXTURE1 + i);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 }
