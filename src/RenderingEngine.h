@@ -14,6 +14,7 @@ class FontRenderer;
 class Camera;
 class Transform;
 class Time;
+class Material;
 class RenderingEngine {
 public:
   RenderingEngine();
@@ -21,10 +22,9 @@ public:
 
   bool initWindow(const std::string &title, int w, int h);
   void initVertex();
-  bool initFramebuffer();
   bool initShader();
-  bool initTexture();
   int render();
+  void renderFont();
   void renderScene(unsigned int shader);
   void renderFrame();
 
@@ -41,21 +41,20 @@ private:
 private:
   static RenderingEngine *instance;
 
-  GLFWwindow *mWindow;
-  float MouseSensitivity, lastX, lastY;
-  bool firstMouse;
   unsigned int normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
   unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO;
+  unsigned int gpuTimeProfileQuery, timeElapsed;
   int width, height;
-  unsigned int diffuse_texture, diffuse_texture2, normal_texture;
-  unsigned int gpuTimeProfileQuery;
-  unsigned int timeElapsed;
-  bool hdrKeyPressed;
+  float MouseSensitivity, lastX, lastY;
   float x_offset, y_offset;
+  bool firstMouse, hdrKeyPressed;
+
+  GLFWwindow *mWindow;
   FontRenderer* fontRenderer;
   Camera* camera;
   Transform* cameraTrans;
   Time* time;
+  Material *cube1, *cube2;
   std::vector<PointLight*> lights;
 };
 

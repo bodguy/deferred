@@ -8,7 +8,7 @@
 class Camera {
 public:
   Camera();
-  Camera(const glm::vec3& pos);
+  explicit Camera(const glm::vec3& pos);
   ~Camera();
 
   bool Init();
