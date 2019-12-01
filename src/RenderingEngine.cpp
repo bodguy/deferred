@@ -19,12 +19,11 @@ RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
         : mWindow(nullptr),
-          MouseSensitivity(0.3f), lastX(0.f), lastY(0.f),
-          firstMouse(true),
+          MouseSensitivity(0.2f), lastMouseX(0.f), lastMouseY(0.f),
           normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), x_offset(0.f), y_offset(0.f),
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false),
           fontRenderer(new FontRenderer()), camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))), time (new Time()),
           cameraTrans(nullptr), cube1(nullptr), cube2(nullptr), lights() {
   instance = this;
@@ -69,12 +68,13 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
     return false;
   }
   glfwMakeContextCurrent(mWindow);
+  glfwPollEvents();
+  glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
   glfwSetFramebufferSizeCallback(mWindow, updateViewport);
+  glfwGetCursorPos(mWindow, &lastMouseX, &lastMouseY);
   glfwSetCursorPosCallback(mWindow, [](GLFWwindow *w, double x, double y) {
     instance->mouseCallback(x, y);
   });
-  glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-  glfwPollEvents();
 
   glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK) {
@@ -82,8 +82,8 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
     return false;
   }
 
-  lastX = (float) w / 2.f;
-  lastY = (float) h / 2.f;
+  lastMouseX = (float) w / 2.f;
+  lastMouseY = (float) h / 2.f;
   width = w;
   height = h;
 
@@ -308,21 +308,16 @@ void RenderingEngine::SetSize(int w, int h) {
   height = h;
 }
 
-void RenderingEngine::mouseCallback(double xpos, double ypos) {
-  if (firstMouse) {
-    lastX = xpos;
-    lastY = ypos;
-    firstMouse = false;
-  }
+void RenderingEngine::mouseCallback(double x, double y) {
+  double timeDelta = MouseSensitivity * time->GetDeltaTime();
+  double x_offset = (x - lastMouseX) * timeDelta;
+  double y_offset = (lastMouseY - y) * timeDelta;
 
-  x_offset = (xpos - lastX) * MouseSensitivity * time->GetDeltaTime();
-  y_offset = (lastY - ypos) * MouseSensitivity * time->GetDeltaTime();
+  lastMouseX = x;
+  lastMouseY = y;
 
-  lastX = xpos;
-  lastY = ypos;
-
-  cameraTrans->Rotate(Transform::Up, -x_offset);
-  cameraTrans->Rotate(cameraTrans->GetRight(), y_offset);
+  cameraTrans->Rotate(Transform::Up, float(-x_offset));
+  cameraTrans->Rotate(cameraTrans->GetRight(), float(y_offset));
 }
 
 void RenderingEngine::keyboardCallback() {

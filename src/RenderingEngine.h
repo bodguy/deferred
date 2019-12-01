@@ -45,9 +45,8 @@ private:
   unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO;
   unsigned int gpuTimeProfileQuery, timeElapsed;
   int width, height;
-  float MouseSensitivity, lastX, lastY;
-  float x_offset, y_offset;
-  bool firstMouse, hdrKeyPressed;
+  double MouseSensitivity, lastMouseX, lastMouseY;
+  bool hdrKeyPressed;
 
   GLFWwindow *mWindow;
   FontRenderer* fontRenderer;
