@@ -5,6 +5,7 @@
 #include "components/Transform.h"
 #include "components/Camera.h"
 #include "components/Time.h"
+#include "obj_parser.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -142,17 +143,33 @@ void RenderingEngine::initVertex() {
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
   glBindVertexArray(0);
 
+  obj_parser::Scene scene;
+  obj_parser::loadObj("../res/cube.obj", scene,
+          obj_parser::ParseOption::FLIP_UV | obj_parser::ParseOption::CALC_TANGENT);
+
   glGenVertexArrays(1, &cubeVAO);
   glGenBuffers(1, &cubeVBO);
   glBindVertexArray(cubeVAO);
   glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::cubeVertices), &utils::cubeVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, scene.meshes[0].vertices.size(), &(scene.meshes[0].vertices[0]), GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
   glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (5 * sizeof(float)));
   glEnableVertexAttribArray(2);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (6 * sizeof(float)));
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
+
+//  glGenVertexArrays(1, &cubeVAO);
+//  glGenBuffers(1, &cubeVBO);
+//  glBindVertexArray(cubeVAO);
+//  glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+//  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::cubeVertices), &utils::cubeVertices, GL_STATIC_DRAW);
+//  glEnableVertexAttribArray(0);
+//  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
+//  glEnableVertexAttribArray(1);
+//  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
+//  glEnableVertexAttribArray(2);
+//  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (6 * sizeof(float)));
 }
 
 bool RenderingEngine::initShader() {
