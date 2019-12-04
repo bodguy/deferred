@@ -24,9 +24,9 @@ RenderingEngine::RenderingEngine()
           normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0),
           width(0), height(0),
-          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false),
+          gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useNormalKeyPressed(false),
           fontRenderer(new FontRenderer()), camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))), time (new Time()),
-          cameraTrans(nullptr), cube1(nullptr), cube2(nullptr), lights() {
+          cameraTrans(nullptr), cube1_material(nullptr), cube2_material(nullptr), lights() {
   instance = this;
   lights.clear();
 }
@@ -45,8 +45,8 @@ RenderingEngine::~RenderingEngine() {
   SAFE_DEALLOC(fontRenderer);
   SAFE_DEALLOC(camera);
   SAFE_DEALLOC(time);
-  SAFE_DEALLOC(cube1);
-  SAFE_DEALLOC(cube2);
+  SAFE_DEALLOC(cube1_material);
+  SAFE_DEALLOC(cube2_material);
   for (auto pl : lights) {
     SAFE_DEALLOC(pl);
   }
@@ -99,11 +99,11 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   }
   cameraTrans = camera->GetTransform();
 
-  cube1 = new Material(128.f);
-  if (!cube1->InitDiffuse("../res/wood.png")) return false;
-  cube2 = new Material(128.f);
-  if (!cube2->InitDiffuse("../res/brickwall.jpg")) return false;
-  if (!cube2->InitNormal("../res/brickwall_normal.jpg")) return false;
+  cube1_material = new Material(128.f);
+  if (!cube1_material->InitDiffuse("../res/wood.png")) return false;
+  cube2_material = new Material(128.f);
+  if (!cube2_material->InitDiffuse("../res/brickwall.jpg")) return false;
+  if (!cube2_material->InitNormal("../res/brickwall_normal.jpg")) return false;
 
   PointLight* light1 = new PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f));
   if (!light1->Init()) {
@@ -214,6 +214,7 @@ void RenderingEngine::renderFont() {
   fontRenderer->Printf(glm::vec2(5.f, height - 12 * 4), "GPU time: %d ns", timeElapsed);
   fontRenderer->SetScale(0.4);
   fontRenderer->SetColor(glm::vec3(1.f, 1.f , 1.f));
+  fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 5), "use normal: %s", cube2_material->GetUseNormal() ? "true" : "false");
   fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 4), "use hdr: %s", camera->IsHdr() ? "true" : "false");
   fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 3), "exposure: %.5f", camera->GetHdrExposure());
   fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
@@ -228,9 +229,10 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDisable(GL_CULL_FACE);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, cube1->GetDiffuse());
+  glBindTexture(GL_TEXTURE_2D, cube1_material->GetDiffuse());
   glUniform1i(glGetUniformLocation(shader, "material.diffuse"), 0);
-  glUniform1f(glGetUniformLocation(shader, "material.shininess"), cube1->GetShininess());
+  glUniform1f(glGetUniformLocation(shader, "material.useNormal"), cube1_material->GetUseNormal());
+  glUniform1f(glGetUniformLocation(shader, "material.shininess"), cube1_material->GetShininess());
 
   // floor
   glm::mat4 model = glm::mat4(1.0f);
@@ -262,8 +264,12 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, cube2->GetDiffuse());
-  glUniform1f(glGetUniformLocation(shader, "material.shininess"), cube2->GetShininess());
+  glBindTexture(GL_TEXTURE_2D, cube2_material->GetDiffuse());
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, cube2_material->GetNormal());
+  glUniform1i(glGetUniformLocation(shader, "material.normal"), 1);
+  glUniform1f(glGetUniformLocation(shader, "material.useNormal"), cube2_material->GetUseNormal());
+  glUniform1f(glGetUniformLocation(shader, "material.shininess"), cube2_material->GetShininess());
 
   // cube1
   model = glm::mat4(1.0f);
@@ -365,5 +371,13 @@ void RenderingEngine::keyboardCallback() {
   }
   if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_RELEASE) {
     hdrKeyPressed = false;
+  }
+
+  if (glfwGetKey(mWindow, GLFW_KEY_TAB) == GLFW_PRESS && !useNormalKeyPressed) {
+    cube2_material->SetUseNormal(!cube2_material->GetUseNormal());
+    useNormalKeyPressed = true;
+  }
+  if (glfwGetKey(mWindow, GLFW_KEY_TAB) == GLFW_RELEASE) {
+    useNormalKeyPressed = false;
   }
 }

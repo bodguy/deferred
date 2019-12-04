@@ -46,14 +46,14 @@ private:
   unsigned int gpuTimeProfileQuery, timeElapsed;
   int width, height;
   double MouseSensitivity, lastMouseX, lastMouseY;
-  bool hdrKeyPressed;
+  bool hdrKeyPressed, useNormalKeyPressed;
 
   GLFWwindow *mWindow;
   FontRenderer* fontRenderer;
   Camera* camera;
   Transform* cameraTrans;
   Time* time;
-  Material *cube1, *cube2;
+  Material *cube1_material, *cube2_material;
   std::vector<PointLight*> lights;
 };
 

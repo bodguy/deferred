@@ -18,10 +18,14 @@ public:
   unsigned int GetNormal() const;
   float GetShininess() const;
 
+  bool GetUseNormal() const;
+  void SetUseNormal(bool use);
+
 private:
   unsigned int diffuse;
   unsigned int specular;
   unsigned int normal;
+  bool useNormal;
   float shininess;
 };
 

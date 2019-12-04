@@ -2,12 +2,12 @@
 #include "../util.h"
 
 Material::Material()
-  : diffuse(0), specular(0), normal(0), shininess(128.f) {
+  : diffuse(0), specular(0), normal(0), useNormal(false), shininess(128.f) {
 
 }
 
 Material::Material(float shin)
-  : diffuse(0), specular(0), normal(0), shininess(shin) {
+  : diffuse(0), specular(0), normal(0), useNormal(false), shininess(shin) {
 
 }
 
@@ -52,4 +52,12 @@ unsigned int Material::GetNormal() const {
 
 float Material::GetShininess() const {
   return shininess;
+}
+
+bool Material::GetUseNormal() const {
+  return useNormal;
+}
+
+void Material::SetUseNormal(bool use) {
+  useNormal = use;
 }
