@@ -151,25 +151,25 @@ void RenderingEngine::initVertex() {
   glGenBuffers(1, &cubeVBO);
   glBindVertexArray(cubeVAO);
   glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-  glBufferData(GL_ARRAY_BUFFER, scene.meshes[0].vertices.size(), &(scene.meshes[0].vertices[0]), GL_STATIC_DRAW);
+  const unsigned int POSITION_OFFSET = 3;
+  const unsigned int NORMAL_OFFSET = 3;
+  const unsigned int TEXTURE_OFFSET = 2;
+  const unsigned int TANGENT_OFFSET = 3;
+  const unsigned int BITANGENT_OFFSET = 3;
+  const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET + BITANGENT_OFFSET) * sizeof(float);
+  const unsigned int size = scene.meshes[0].vertices.size() * STRIDE;
+  float* p = &(scene.meshes[0].vertices[0].position.x);
+  glBufferData(GL_ARRAY_BUFFER, size, p, GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) 0);
   glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (5 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) (POSITION_OFFSET * sizeof(float)));
   glEnableVertexAttribArray(2);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
-
-//  glGenVertexArrays(1, &cubeVAO);
-//  glGenBuffers(1, &cubeVBO);
-//  glBindVertexArray(cubeVAO);
-//  glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-//  glBufferData(GL_ARRAY_BUFFER, sizeof(utils::cubeVertices), &utils::cubeVertices, GL_STATIC_DRAW);
-//  glEnableVertexAttribArray(0);
-//  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
-//  glEnableVertexAttribArray(1);
-//  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
-//  glEnableVertexAttribArray(2);
-//  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (6 * sizeof(float)));
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET) * sizeof(float)));
+  glEnableVertexAttribArray(3);
+  glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET) * sizeof(float)));
+  glEnableVertexAttribArray(4);
+  glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float)));
 }
 
 bool RenderingEngine::initShader() {

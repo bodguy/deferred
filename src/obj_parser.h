@@ -24,13 +24,12 @@ namespace obj_parser {
   }
 
   struct Vertex {
-    Vertex() :position(), texcoord(), normal() {}
-    // ,tangent(), bitangetn()
+    Vertex() : position(), normal(), texcoord(), tangent(), bitangent() {}
     vec3 position;
-    vec2 texcoord;
     vec3 normal;
-//    vec3 tangent;
-//    vec3 bitangent;
+    vec2 texcoord;
+    vec3 tangent;
+    vec3 bitangent;
   };
 
   struct VertexIndex {
@@ -165,9 +164,10 @@ namespace obj_parser {
   };
 
   inline void calcTangent(Mesh& mesh, unsigned int offset) {
-    Vertex v1 = mesh.vertices.at(offset);
-    Vertex v2 = mesh.vertices.at(offset + 1);
-    Vertex v3 = mesh.vertices.at(offset + 2);
+    unsigned int offset_start = offset * 3;
+    Vertex v1 = mesh.vertices.at(offset_start);
+    Vertex v2 = mesh.vertices.at(offset_start + 1);
+    Vertex v3 = mesh.vertices.at(offset_start + 2);
 
     vec3 e1 = v2.position - v1.position;
     vec3 e2 = v3.position - v1.position;
@@ -188,17 +188,17 @@ namespace obj_parser {
     bitangent.z = f * (-delta2.x * e1.z + delta1.x * e2.z);
     bitangent = normalize(bitangent);
 
-//    v1.tangent = tangent;
-//    v2.tangent = tangent;
-//    v3.tangent = tangent;
-//
-//    v1.bitangent = bitangent;
-//    v2.bitangent = bitangent;
-//    v3.bitangent = bitangent;
+    v1.tangent = tangent;
+    v2.tangent = tangent;
+    v3.tangent = tangent;
 
-    mesh.vertices[offset] = v1;
-    mesh.vertices[offset + 1] = v2;
-    mesh.vertices[offset + 2] = v3;
+    v1.bitangent = bitangent;
+    v2.bitangent = bitangent;
+    v3.bitangent = bitangent;
+
+    mesh.vertices[offset_start] = v1;
+    mesh.vertices[offset_start + 1] = v2;
+    mesh.vertices[offset_start + 2] = v3;
   }
 
   inline void triangulate(Mesh& mesh, const std::vector<vec3>& verts, size_t npolys) {
@@ -236,9 +236,9 @@ namespace obj_parser {
           mesh.vertices.emplace_back(vtx);
         }
 
-//        if ((option & ParseOption::CALC_TANGENT) && npolys == 3) {
-//          calcTangent(mesh, count);
-//        }
+        if ((option & ParseOption::CALC_TANGENT) && npolys == 3) {
+          calcTangent(mesh, count);
+        }
 
         auto preCompute = (unsigned int)((mesh.vertices.size()) - npolys);
         for (size_t ff = 0; ff < npolys; ff++) {
