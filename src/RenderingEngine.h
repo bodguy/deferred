@@ -42,7 +42,7 @@ private:
   static RenderingEngine *instance;
 
   unsigned int normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
-  unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO;
+  unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO, dragonVAO, dragonVBO;
   unsigned int gpuTimeProfileQuery, timeElapsed;
   int width, height;
   double MouseSensitivity, lastMouseX, lastMouseY;

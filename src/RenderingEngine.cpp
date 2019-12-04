@@ -22,7 +22,7 @@ RenderingEngine::RenderingEngine()
         : mWindow(nullptr),
           MouseSensitivity(0.2f), lastMouseX(0.f), lastMouseY(0.f),
           normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
-          cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0),
+          cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0), dragonVAO(0), dragonVBO(0),
           width(0), height(0),
           gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useNormalKeyPressed(false),
           fontRenderer(new FontRenderer()), camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))), time (new Time()),
@@ -36,6 +36,8 @@ RenderingEngine::~RenderingEngine() {
   glDeleteBuffers(1, &cubeVBO);
   glDeleteVertexArrays(1, &planeVAO);
   glDeleteBuffers(1, &planeVBO);
+  glDeleteVertexArrays(1, &dragonVAO);
+  glDeleteBuffers(1, &dragonVBO);
 
   glDeleteProgram(normal_shader);
   glDeleteProgram(depth_cubemap_shader);
@@ -144,8 +146,7 @@ void RenderingEngine::initVertex() {
   glBindVertexArray(0);
 
   obj_parser::Scene scene;
-  obj_parser::loadObj("../res/cube.obj", scene,
-          obj_parser::ParseOption::FLIP_UV | obj_parser::ParseOption::CALC_TANGENT);
+  obj_parser::loadObj("../res/cube.obj", scene, obj_parser::ParseOption::FLIP_UV | obj_parser::ParseOption::CALC_TANGENT);
 
   glGenVertexArrays(1, &cubeVAO);
   glGenBuffers(1, &cubeVBO);
@@ -157,9 +158,25 @@ void RenderingEngine::initVertex() {
   const unsigned int TANGENT_OFFSET = 3;
   const unsigned int BITANGENT_OFFSET = 3;
   const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET + BITANGENT_OFFSET) * sizeof(float);
-  const unsigned int size = scene.meshes[0].vertices.size() * STRIDE;
-  float* p = &(scene.meshes[0].vertices[0].position.x);
-  glBufferData(GL_ARRAY_BUFFER, size, p, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, scene.meshes[0].vertices.size() * STRIDE, &(scene.meshes[0].vertices[0].position.x), GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) 0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) (POSITION_OFFSET * sizeof(float)));
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET) * sizeof(float)));
+  glEnableVertexAttribArray(3);
+  glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET) * sizeof(float)));
+  glEnableVertexAttribArray(4);
+  glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float)));
+
+  obj_parser::loadObj("../res/dragon.obj", scene, obj_parser::ParseOption::FLIP_UV);
+
+  glGenVertexArrays(1, &dragonVAO);
+  glGenBuffers(1, &dragonVBO);
+  glBindVertexArray(dragonVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, dragonVBO);
+  glBufferData(GL_ARRAY_BUFFER, scene.meshes[1].vertices.size() * STRIDE, &(scene.meshes[1].vertices[0].position.x), GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) 0);
   glEnableVertexAttribArray(1);
@@ -263,6 +280,14 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
   glDrawArrays_profile(GL_TRIANGLES, 0, 36);
 
+  // dragon
+  glBindVertexArray(dragonVAO);
+  model = glm::mat4(1.0f);
+  model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0));
+  model = glm::scale(model, glm::vec3(0.1f));
+  glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+  glDrawArrays_profile(GL_TRIANGLES, 0, 300000);
+
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, cube2_material->GetDiffuse());
   glActiveTexture(GL_TEXTURE1);
@@ -272,6 +297,7 @@ void RenderingEngine::renderScene(unsigned int shader) {
   glUniform1f(glGetUniformLocation(shader, "material.shininess"), cube2_material->GetShininess());
 
   // cube1
+  glBindVertexArray(cubeVAO);
   model = glm::mat4(1.0f);
   model = glm::translate(model, glm::vec3(1.92f, 0.f, -3.f));
   model = glm::scale(model, glm::vec3(0.5f));
