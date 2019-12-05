@@ -24,12 +24,11 @@ namespace obj_parser {
   }
 
   struct Vertex {
-    Vertex() : position(), normal(), texcoord(), tangent(), bitangent() {}
+    Vertex() : position(), normal(), texcoord(), tangent() {}
     vec3 position;
     vec3 normal;
     vec2 texcoord;
     vec3 tangent;
-    vec3 bitangent;
   };
 
   struct VertexIndex {
@@ -191,10 +190,6 @@ namespace obj_parser {
     v1.tangent = tangent;
     v2.tangent = tangent;
     v3.tangent = tangent;
-
-    v1.bitangent = bitangent;
-    v2.bitangent = bitangent;
-    v3.bitangent = bitangent;
 
     mesh.vertices[offset_start] = v1;
     mesh.vertices[offset_start + 1] = v2;

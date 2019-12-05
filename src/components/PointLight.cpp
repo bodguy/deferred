@@ -94,7 +94,6 @@ void PointLight::BindUniform(unsigned int shader, unsigned int i) const {
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].intensity").c_str()), intensity);
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].castShadow").c_str()), castShadow);
   glUniform1f(glGetUniformLocation(shader, ("pointLights[" + std::to_string(i) + "].castTranslucentShadow").c_str()), castTranslucentShadow);
-  glUniform3fv(glGetUniformLocation(shader, ("lightPos[" + std::to_string(i) + "]").c_str()), 1, glm::value_ptr(transform.GetPosition()));
   glActiveTexture(GL_TEXTURE2 + i);
   glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
   glUniform1i(glGetUniformLocation(shader, ("depthMap[" + std::to_string(i) + "]").c_str()), 2 + i);

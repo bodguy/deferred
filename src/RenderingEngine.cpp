@@ -156,8 +156,7 @@ void RenderingEngine::initVertex() {
   const unsigned int NORMAL_OFFSET = 3;
   const unsigned int TEXTURE_OFFSET = 2;
   const unsigned int TANGENT_OFFSET = 3;
-  const unsigned int BITANGENT_OFFSET = 3;
-  const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET + BITANGENT_OFFSET) * sizeof(float);
+  const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float);
   glBufferData(GL_ARRAY_BUFFER, scene.meshes[0].vertices.size() * STRIDE, &(scene.meshes[0].vertices[0].position.x), GL_STATIC_DRAW);
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) 0);
@@ -167,8 +166,6 @@ void RenderingEngine::initVertex() {
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET) * sizeof(float)));
   glEnableVertexAttribArray(3);
   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET) * sizeof(float)));
-  glEnableVertexAttribArray(4);
-  glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float)));
 
   obj_parser::loadObj("../res/dragon.obj", scene, obj_parser::ParseOption::FLIP_UV);
 
@@ -185,8 +182,6 @@ void RenderingEngine::initVertex() {
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET) * sizeof(float)));
   glEnableVertexAttribArray(3);
   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET) * sizeof(float)));
-  glEnableVertexAttribArray(4);
-  glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *) ((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float)));
 }
 
 bool RenderingEngine::initShader() {
