@@ -104,8 +104,8 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   cube1_material = new Material(128.f);
   if (!cube1_material->InitDiffuse("../res/wood.png")) return false;
   cube2_material = new Material(128.f);
-  if (!cube2_material->InitDiffuse("../res/brickwall.jpg")) return false;
-  if (!cube2_material->InitNormal("../res/brickwall_normal.jpg")) return false;
+  if (!cube2_material->InitDiffuse("../res/stone/stone_diffuse_map.png")) return false;
+  if (!cube2_material->InitNormal("../res/stone/stone_normal_map.png")) return false;
 
   PointLight* light1 = new PointLight(glm::vec3( 3.17f,  2.34f,  -4.184f), glm::vec3(1.f, 1.f, 1.f));
   if (!light1->Init()) {

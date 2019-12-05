@@ -181,12 +181,6 @@ namespace obj_parser {
     tangent.z = f * (delta2.y * e1.z - delta1.y * e2.z);
     tangent = normalize(tangent);
 
-    vec3 bitangent;
-    bitangent.x = f * (-delta2.x * e1.x + delta1.x * e2.x);
-    bitangent.y = f * (-delta2.x * e1.y + delta1.x * e2.y);
-    bitangent.z = f * (-delta2.x * e1.z + delta1.x * e2.z);
-    bitangent = normalize(bitangent);
-
     v1.tangent = tangent;
     v2.tangent = tangent;
     v3.tangent = tangent;
