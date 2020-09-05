@@ -11,22 +11,24 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 
-static void updateViewport(GLFWwindow* win, int w, int h) {
-  RenderingEngine::GetInstance()->SetSize(w, h);
-  // framebuffer resize needed
+static void callbackResize(GLFWwindow* win, int cx, int cy) {
+    auto *ptr = static_cast<RenderingEngine*>(glfwGetWindowUserPointer(win));
+    if (ptr != nullptr) {
+        ptr->invalidate();
+    }
 }
 
 RenderingEngine *RenderingEngine::instance = nullptr;
 
 RenderingEngine::RenderingEngine()
-        : mWindow(nullptr),
+        : mWindow(nullptr), mMonitor(nullptr),
           MouseSensitivity(0.2f), lastMouseX(0.f), lastMouseY(0.f),
           normal_shader(0), depth_cubemap_shader(0), shadow_cubemap_shader(0),
           cubeVAO(0), cubeVBO(0), planeVAO(0), planeVBO(0), dragonVAO(0), dragonVBO(0),
           width(0), height(0),
           gpuTimeProfileQuery(0), timeElapsed(0), hdrKeyPressed(false), useNormalKeyPressed(false),
           fontRenderer(new FontRenderer()), camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))), time (new Time()),
-          cameraTrans(nullptr), cube1_material(nullptr), cube2_material(nullptr), lights() {
+          cameraTrans(nullptr), cube1_material(nullptr), cube2_material(nullptr), lights(), isInvalidate(true) {
   instance = this;
   lights.clear();
 }
@@ -73,11 +75,18 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
   glfwMakeContextCurrent(mWindow);
   glfwPollEvents();
   glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-  glfwSetFramebufferSizeCallback(mWindow, updateViewport);
-  glfwGetCursorPos(mWindow, &lastMouseX, &lastMouseY);
+    glfwGetWindowSize(mWindow, &width, &height);
+    glfwSetWindowUserPointer(mWindow, this);
+    glfwSetWindowSizeCallback(mWindow, callbackResize);
+    glfwGetCursorPos(mWindow, &lastMouseX, &lastMouseY);
+    mMonitor = glfwGetPrimaryMonitor();
   glfwSetCursorPosCallback(mWindow, [](GLFWwindow *w, double x, double y) {
     instance->mouseCallback(x, y);
   });
+    int w2, h2;
+    glfwGetFramebufferSize(mWindow, &w2, &h2);
+    this->width = w2;
+    this->height = h2;
 
   glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK) {
@@ -87,8 +96,7 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
 
   lastMouseX = (float) w / 2.f;
   lastMouseY = (float) h / 2.f;
-  width = w;
-  height = h;
+
 
   if (!fontRenderer->Init("../res/arial.ttf")) {
     std::cout << "fontRenderer Init failed" << std::endl;
@@ -194,8 +202,20 @@ bool RenderingEngine::initShader() {
   return true;
 }
 
+bool RenderingEngine::isFullscreen() {
+    return glfwGetWindowMonitor(mWindow) != nullptr;
+}
+
 int RenderingEngine::render() {
   while (!glfwWindowShouldClose(mWindow)) {
+      if (isInvalidate) {
+          int w, h;
+          glfwGetFramebufferSize(mWindow, &w, &h);
+          this->width = w;
+          this->height = h;
+          isInvalidate = false;
+      }
+
     if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
       glfwSetWindowShouldClose(mWindow, true);
 
@@ -347,9 +367,30 @@ void RenderingEngine::renderFrame() {
   camera->Render();
 }
 
-void RenderingEngine::SetSize(int w, int h) {
-  width = w;
-  height = h;
+void RenderingEngine::invalidate() {
+  this->isInvalidate = true;
+}
+
+void RenderingEngine::SetFullScreen(bool fullscreen) {
+    if (isFullscreen() == fullscreen)
+        return;
+
+    if (fullscreen) {
+        // backup window position and window size
+        glfwGetWindowSize(mWindow, &width, &height);
+
+        // get resolution of monitor
+        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        std::cout << "Width: " << mode->width << ", Height: " << mode->height << std::endl;
+
+        // switch to full screen
+//        glfwSetWindowMonitor(mWindow, mMonitor, 0, 0, mode->width, mode->height, 0);
+    } else {
+        // restore last window size and position
+//        glfwSetWindowMonitor(mWindow, nullptr,  0, 0, width, height, 0);
+    }
+
+    isInvalidate = true;
 }
 
 void RenderingEngine::mouseCallback(double x, double y) {
@@ -369,6 +410,11 @@ void RenderingEngine::keyboardCallback() {
   if (glfwGetKey(mWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     speed = 7.5f;
   float velocity = speed * time->GetDeltaTime();
+
+  if (glfwGetKey(mWindow, GLFW_KEY_9) == GLFW_PRESS)
+      std::cout << std::boolalpha << isFullscreen() << std::endl;
+    if (glfwGetKey(mWindow, GLFW_KEY_8) == GLFW_PRESS)
+        SetFullScreen(true);
 
   glm::vec3 forward = cameraTrans->GetForward();
   glm::vec3 right = cameraTrans->GetRight();

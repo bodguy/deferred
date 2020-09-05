@@ -10,6 +10,7 @@
 #include <map>
 
 struct GLFWwindow;
+struct GLFWmonitor;
 class FontRenderer;
 class Camera;
 class Transform;
@@ -23,6 +24,7 @@ public:
   bool initWindow(const std::string &title, int w, int h);
   void initVertex();
   bool initShader();
+  bool isFullscreen();
   int render();
   void renderFont();
   void renderScene(unsigned int shader);
@@ -32,7 +34,8 @@ public:
 
   int GetWidth() const { return width; }
   int GetHeight() const { return height; }
-  void SetSize(int w, int h);
+  void invalidate();
+  void SetFullScreen(bool fullscreen);
 
 private:
   void mouseCallback(double xpos, double ypos);
@@ -49,12 +52,14 @@ private:
   bool hdrKeyPressed, useNormalKeyPressed;
 
   GLFWwindow *mWindow;
+  GLFWmonitor* mMonitor;
   FontRenderer* fontRenderer;
   Camera* camera;
   Transform* cameraTrans;
   Time* time;
   Material *cube1_material, *cube2_material;
   std::vector<PointLight*> lights;
+  bool isInvalidate;
 };
 
 
