@@ -1,5 +1,7 @@
 ### MacOs OpenGL bootstrap
 
+![capture](./capture.png)
+
 before to build
 
 ```bash
