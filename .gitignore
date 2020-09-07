@@ -3,6 +3,8 @@
 
 !/cmake/
 !/.gitignore
+!/.clang-format
+!/clang-format-all
 !/CMakeLists.txt
 !/README.md
 !/src/

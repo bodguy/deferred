@@ -1,63 +1,45 @@
-#include "Material.h"
 #include "../util.h"
+#include "Material.h"
 
-Material::Material()
-  : diffuse(0), specular(0), normal(0), useNormal(false), shininess(128.f) {
+Material::Material() : diffuse(0), specular(0), normal(0), useNormal(false), shininess(128.f) {}
 
-}
-
-Material::Material(float shin)
-  : diffuse(0), specular(0), normal(0), useNormal(false), shininess(shin) {
-
-}
+Material::Material(float shin) : diffuse(0), specular(0), normal(0), useNormal(false), shininess(shin) {}
 
 Material::~Material() {
-  if (!diffuse) {
-    glDeleteTextures(1, &diffuse);
-  }
-  if (!specular) {
-    glDeleteTextures(1, &specular);
-  }
-  if (!normal) {
-    glDeleteTextures(1, &normal);
-  }
+    if (!diffuse) {
+        glDeleteTextures(1, &diffuse);
+    }
+    if (!specular) {
+        glDeleteTextures(1, &specular);
+    }
+    if (!normal) {
+        glDeleteTextures(1, &normal);
+    }
 }
 
 bool Material::InitDiffuse(const std::string &filename) {
-  diffuse = loadTexture(filename.c_str(), false);
-  return diffuse != 0;
+    diffuse = loadTexture(filename.c_str(), false);
+    return diffuse != 0;
 }
 
 bool Material::InitSpecular(const std::string &filename) {
-  specular = loadTexture(filename.c_str(), false);
-  return specular != 0;
+    specular = loadTexture(filename.c_str(), false);
+    return specular != 0;
 }
 
 bool Material::InitNormal(const std::string &filename) {
-  normal = loadTexture(filename.c_str(), false);
-  return normal != 0;
+    normal = loadTexture(filename.c_str(), false);
+    return normal != 0;
 }
 
-unsigned int Material::GetDiffuse() const {
-  return diffuse;
-}
+unsigned int Material::GetDiffuse() const { return diffuse; }
 
-unsigned int Material::GetSpecular() const {
-  return specular;
-}
+unsigned int Material::GetSpecular() const { return specular; }
 
-unsigned int Material::GetNormal() const {
-  return normal;
-}
+unsigned int Material::GetNormal() const { return normal; }
 
-float Material::GetShininess() const {
-  return shininess;
-}
+float Material::GetShininess() const { return shininess; }
 
-bool Material::GetUseNormal() const {
-  return useNormal;
-}
+bool Material::GetUseNormal() const { return useNormal; }
 
-void Material::SetUseNormal(bool use) {
-  useNormal = use;
-}
+void Material::SetUseNormal(bool use) { useNormal = use; }

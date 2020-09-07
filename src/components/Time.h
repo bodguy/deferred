@@ -2,15 +2,15 @@
 #define TIME_H
 
 class Time {
-public:
-  Time();
+  public:
+    Time();
 
-  void Update();
-  float GetDeltaTime() const;
-  float ElapsedTime() const;
+    void Update();
+    float GetDeltaTime() const;
+    float ElapsedTime() const;
 
-private:
-  float deltaTime, lastFrame;
+  private:
+    float deltaTime, lastFrame;
 };
 
-#endif //TIME_H
+#endif  // TIME_H
