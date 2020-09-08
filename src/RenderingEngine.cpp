@@ -11,6 +11,7 @@
 #include "components/Material.h"
 #include "components/Time.h"
 #include "components/Transform.h"
+#include "physics/Cloth.h"
 #include "obj_parser.h"
 #include "util.h"
 
@@ -32,6 +33,7 @@ RenderingEngine::RenderingEngine()
       normal_shader(0),
       depth_cubemap_shader(0),
       shadow_cubemap_shader(0),
+      cloth_shader(0),
       cubeVAO(0),
       cubeVBO(0),
       planeVAO(0),
@@ -50,6 +52,7 @@ RenderingEngine::RenderingEngine()
       cameraTrans(nullptr),
       cube1_material(nullptr),
       cube2_material(nullptr),
+      cloth(new Cloth(10, 10)),
       lights(),
       isInvalidate(true) {
     instance = this;
@@ -67,6 +70,7 @@ RenderingEngine::~RenderingEngine() {
     glDeleteProgram(normal_shader);
     glDeleteProgram(depth_cubemap_shader);
     glDeleteProgram(shadow_cubemap_shader);
+    glDeleteProgram(cloth_shader);
     glDeleteQueries(1, &gpuTimeProfileQuery);
 
     SAFE_DEALLOC(fontRenderer);
@@ -74,6 +78,7 @@ RenderingEngine::~RenderingEngine() {
     SAFE_DEALLOC(time);
     SAFE_DEALLOC(cube1_material);
     SAFE_DEALLOC(cube2_material);
+    SAFE_DEALLOC(cloth);
     for (auto pl : lights) {
         SAFE_DEALLOC(pl);
     }
@@ -219,12 +224,16 @@ bool RenderingEngine::initShader() {
     if (!depth_cubemap_shader) return false;
     shadow_cubemap_shader = loadShaderFromFile("../shaders/point_shadow/shadow_vs.shader", "../shaders/point_shadow/shadow_fs.shader");
     if (!shadow_cubemap_shader) return false;
+    cloth_shader = loadShaderFromFile("../shaders/cloth/cloth_vs.shader", "../shaders/cloth/cloth_fs.shader");
+    if (!cloth_shader) return false;
     return true;
 }
 
 bool RenderingEngine::isFullscreen() { return glfwGetWindowMonitor(mWindow) != nullptr; }
 
 int RenderingEngine::render() {
+    glm::vec3 dir = glm::vec3(0.05, 0, 0.05) * 0.5f * 0.5f;
+
     while (!glfwWindowShouldClose(mWindow)) {
         if (isInvalidate) {
             int w, h;
@@ -238,6 +247,9 @@ int RenderingEngine::render() {
 
         time->Update();
         keyboardCallback();
+
+        cloth->add_wind_force(dir);
+        cloth->update(time->GetDeltaTime());
 
         glBeginQuery(GL_TIME_ELAPSED, gpuTimeProfileQuery);
         renderFrame();
@@ -386,6 +398,7 @@ void RenderingEngine::renderFrame() {
     for (auto &light : lights) {
         light->RenderLight(normal_shader);
     }
+    cloth->render();
     camera->Render();
 }
 

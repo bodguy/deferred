@@ -17,6 +17,7 @@ class Camera;
 class Transform;
 class Time;
 class Material;
+class Cloth;
 class RenderingEngine {
   public:
     RenderingEngine();
@@ -44,7 +45,7 @@ class RenderingEngine {
   private:
     static RenderingEngine* instance;
 
-    unsigned int normal_shader, depth_cubemap_shader, shadow_cubemap_shader;
+    unsigned int normal_shader, depth_cubemap_shader, shadow_cubemap_shader, cloth_shader;
     unsigned int cubeVAO, cubeVBO, planeVAO, planeVBO, dragonVAO, dragonVBO;
     unsigned int gpuTimeProfileQuery, timeElapsed;
     int width, height;
@@ -58,6 +59,7 @@ class RenderingEngine {
     Transform* cameraTrans;
     Time* time;
     Material *cube1_material, *cube2_material;
+    Cloth* cloth;
     std::vector<PointLight*> lights;
     bool isInvalidate;
 };
