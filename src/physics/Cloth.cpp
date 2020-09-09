@@ -52,7 +52,6 @@ Cloth::~Cloth() {
 
 void Cloth::initVertex() {
     std::vector<glm::vec3> data_buffer{};
-    data_buffer.resize(m_width * m_height);
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
@@ -69,9 +68,10 @@ void Cloth::initVertex() {
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * sizeof(float), &data_buffer[0].x, GL_STATIC_DRAW);
+    int STRIDE = 3 * sizeof(float);
+    glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &(data_buffer[0].x), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
 }
 
 void Cloth::add_wind_force(const glm::vec3& direction) {
@@ -105,8 +105,6 @@ void Cloth::add_wind_force_for_triangle(Particle* p1, Particle* p2, Particle* p3
 
 void Cloth::render() {
     std::vector<glm::vec3> data_buffer{};
-    int wh = m_width * m_height;
-    data_buffer.resize(wh);
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
@@ -121,11 +119,10 @@ void Cloth::render() {
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * sizeof(float), &data_buffer[0].x);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * 3 * sizeof(float), &(data_buffer[0].x));
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    glDrawArrays_profile(GL_TRIANGLES, 0, 6 * wh);
-    glBindVertexArray(NULL);
+    glDrawArrays_profile(GL_TRIANGLES, 0, 6 * m_width * m_height);
 }
 
 void Cloth::update(float dt) {

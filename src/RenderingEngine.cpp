@@ -163,8 +163,8 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
 
     glGenQueries(1, &gpuTimeProfileQuery);
 
-    cloth_transform = new Transform(glm::vec3(3.0f, 0.0f, 13.0));
-    cloth_transform->SetScale(glm::vec3(10.f, 20.f, 10.f));
+    cloth_transform = new Transform(glm::vec3(3.0f, 0.0f, 9.0));
+    cloth_transform->SetScale(glm::vec3(1.f, 2.f, 1.f));
 
     return true;
 }
@@ -275,22 +275,23 @@ int RenderingEngine::render() {
 }
 
 void RenderingEngine::renderFont() {
-    fontRenderer->SetScale(0.27);
+    float font_size = 0.6;
+    int line_space = 32;
+    fontRenderer->SetScale(font_size);
     fontRenderer->SetColor(glm::vec3(0.25f, 0.25f, 0.25f));
-    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 1), "triangle count: %d", triangleCount);
-    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 2), "vertex count: %d", vertexCount);
-    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 3), "draw call: %d", drawCallCount);
-    fontRenderer->Printf(glm::vec2(5.f, height - 12 * 4), "GPU time: %d ns", timeElapsed);
-    fontRenderer->SetScale(0.4);
+    fontRenderer->Printf(glm::vec2(5.f, height - line_space * 1), "triangle count: %d", triangleCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - line_space * 2), "vertex count: %d", vertexCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - line_space * 3), "draw call: %d", drawCallCount);
+    fontRenderer->Printf(glm::vec2(5.f, height - line_space * 4), "GPU time: %d ns", timeElapsed);
     fontRenderer->SetColor(glm::vec3(1.f, 1.f, 1.f));
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 5), "use normal: %s", cube2_material->GetUseNormal() ? "true" : "false");
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 4), "use hdr: %s", camera->IsHdr() ? "true" : "false");
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 3), "exposure: %.5f", camera->GetHdrExposure());
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 2), "total lights: %ld", lights.size());
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 5), "use normal: %s", cube2_material->GetUseNormal() ? "true" : "false");
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 4), "use hdr: %s", camera->IsHdr() ? "true" : "false");
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 3), "exposure: %.5f", camera->GetHdrExposure());
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 2), "total lights: %ld", lights.size());
     glm::vec3 f = cameraTrans->GetForward();
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 1), "camera front: [%.2f, %.2f, %.2f]", f.x, f.y, f.z);
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 1), "camera front: [%.2f, %.2f, %.2f]", f.x, f.y, f.z);
     glm::vec3 p = cameraTrans->GetPosition();
-    fontRenderer->Printf(glm::vec2(5.f, 5 + 22 * 0), "camera pos: [%.2f, %.2f, %.2f]", p.x, p.y, p.z);
+    fontRenderer->Printf(glm::vec2(5.f, 5 + line_space * 0), "camera pos: [%.2f, %.2f, %.2f]", p.x, p.y, p.z);
 }
 
 void RenderingEngine::renderScene(unsigned int shader) {
@@ -340,11 +341,6 @@ void RenderingEngine::renderScene(unsigned int shader) {
     glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glDrawArrays_profile(GL_TRIANGLES, 0, 300000);
 
-    // dragon2
-    model = glm::translate(model, glm::vec3(3.0f, 0.0f, 9.0));
-    glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-    glDrawArrays_profile(GL_TRIANGLES, 0, 300000);
-
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, cube2_material->GetDiffuse());
     glActiveTexture(GL_TEXTURE1);
@@ -373,12 +369,6 @@ void RenderingEngine::renderScene(unsigned int shader) {
     model = glm::scale(model, glm::vec3(0.5f));
     glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glDrawArrays_profile(GL_TRIANGLES, 0, 36);
-
-    glUseProgram(cloth_shader);
-    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "model"), 1, GL_FALSE, glm::value_ptr(cloth_transform->GetLocalToWorldMatrix()));
-    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
-    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
-    cloth->render();
 }
 
 void RenderingEngine::renderFrame() {
@@ -412,6 +402,14 @@ void RenderingEngine::renderFrame() {
     for (auto &light : lights) {
         light->RenderLight(normal_shader);
     }
+
+    // Draw cloth
+    glUseProgram(cloth_shader);
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "model"), 1, GL_FALSE, glm::value_ptr(cloth_transform->GetLocalToWorldMatrix()));
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
+    cloth->render();
+
     camera->Render();
 }
 
