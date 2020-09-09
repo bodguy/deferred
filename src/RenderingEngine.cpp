@@ -50,9 +50,10 @@ RenderingEngine::RenderingEngine()
       camera(new Camera(glm::vec3(0.0f, 2.3f, 8.0f))),
       time(new Time()),
       cameraTrans(nullptr),
+      cloth_transform(nullptr),
       cube1_material(nullptr),
       cube2_material(nullptr),
-      cloth(new Cloth(10, 10)),
+      cloth{nullptr},
       lights(),
       isInvalidate(true) {
     instance = this;
@@ -79,6 +80,7 @@ RenderingEngine::~RenderingEngine() {
     SAFE_DEALLOC(cube1_material);
     SAFE_DEALLOC(cube2_material);
     SAFE_DEALLOC(cloth);
+    SAFE_DEALLOC(cloth_transform);
     for (auto pl : lights) {
         SAFE_DEALLOC(pl);
     }
@@ -161,10 +163,19 @@ bool RenderingEngine::initWindow(const std::string &title, int w, int h) {
 
     glGenQueries(1, &gpuTimeProfileQuery);
 
+    cloth_transform = new Transform(glm::vec3(3.0f, 0.0f, 13.0));
+    cloth_transform->SetScale(glm::vec3(10.f, 20.f, 10.f));
+
     return true;
 }
 
 void RenderingEngine::initVertex() {
+    const unsigned int POSITION_OFFSET = 3;
+    const unsigned int NORMAL_OFFSET = 3;
+    const unsigned int TEXTURE_OFFSET = 2;
+    const unsigned int TANGENT_OFFSET = 3;
+    const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float);
+
     glGenVertexArrays(1, &planeVAO);
     glGenBuffers(1, &planeVBO);
     glBindVertexArray(planeVAO);
@@ -185,11 +196,6 @@ void RenderingEngine::initVertex() {
     glGenBuffers(1, &cubeVBO);
     glBindVertexArray(cubeVAO);
     glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    const unsigned int POSITION_OFFSET = 3;
-    const unsigned int NORMAL_OFFSET = 3;
-    const unsigned int TEXTURE_OFFSET = 2;
-    const unsigned int TANGENT_OFFSET = 3;
-    const unsigned int STRIDE = (POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET + TANGENT_OFFSET) * sizeof(float);
     glBufferData(GL_ARRAY_BUFFER, scene.meshes[0].vertices.size() * STRIDE, &(scene.meshes[0].vertices[0].position.x), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
@@ -215,6 +221,8 @@ void RenderingEngine::initVertex() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE, (void *)((POSITION_OFFSET + NORMAL_OFFSET) * sizeof(float)));
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)((POSITION_OFFSET + NORMAL_OFFSET + TEXTURE_OFFSET) * sizeof(float)));
+
+    cloth = new Cloth(10, 10);
 }
 
 bool RenderingEngine::initShader() {
@@ -365,6 +373,12 @@ void RenderingEngine::renderScene(unsigned int shader) {
     model = glm::scale(model, glm::vec3(0.5f));
     glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glDrawArrays_profile(GL_TRIANGLES, 0, 36);
+
+    glUseProgram(cloth_shader);
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "model"), 1, GL_FALSE, glm::value_ptr(cloth_transform->GetLocalToWorldMatrix()));
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "view"), 1, GL_FALSE, glm::value_ptr(camera->GetWorldToCameraMatrix()));
+    glUniformMatrix4fv(glGetUniformLocation(cloth_shader, "projection"), 1, GL_FALSE, glm::value_ptr(camera->GetProjectionMatrix()));
+    cloth->render();
 }
 
 void RenderingEngine::renderFrame() {
@@ -398,7 +412,6 @@ void RenderingEngine::renderFrame() {
     for (auto &light : lights) {
         light->RenderLight(normal_shader);
     }
-    cloth->render();
     camera->Render();
 }
 

@@ -56,7 +56,7 @@ class RenderingEngine {
     GLFWmonitor* mMonitor;
     FontRenderer* fontRenderer;
     Camera* camera;
-    Transform* cameraTrans;
+    Transform* cameraTrans, *cloth_transform;
     Time* time;
     Material *cube1_material, *cube2_material;
     Cloth* cloth;

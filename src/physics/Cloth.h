@@ -8,7 +8,9 @@
 class Cloth {
 public:
   Cloth(int w, int h);
+  ~Cloth();
 
+  void initVertex();
   void add_wind_force(const glm::vec3& direction);
 
   void render();
@@ -26,6 +28,7 @@ private:
   int m_cloth_solver_freq = 15;
   std::vector<Particle> m_particles;
   std::vector<Constraint> m_constraint;
+  unsigned int vao = 0, vbo = 0;
 };
 
 #endif //DEFERRED_CLOTH_H
