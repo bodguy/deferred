@@ -5,18 +5,7 @@
 before to build
 
 ```bash
-brew install glfw3
-brew link glfw
-```
-
-```bash
-brew install glew
-brew link glew
-```
-
-```bash
-brew install glm
-brew link glm
+brew install glfw3 glew glm freetype
 ```
 
 ### linux-deb bootstrap
@@ -33,9 +22,9 @@ NOT WORK
 
 ### dependencies
 
-- CoreVideo
-- Cocoa
-- IOkit
+- CoreVideo (only MacOS)
+- Cocoa (only MacOS)
+- IOkit (only MacOS)
 - OpenGL
 - glew
 - glfw
